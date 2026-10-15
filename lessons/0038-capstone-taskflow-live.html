@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0038 — Capstone: TaskFlow Live</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Capstone: TaskFlow live — deployed API plus frontend wiring, pre-flight checklist, grading rubric, graduation.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0038-capstone-taskflow-live.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0038 — Capstone: TaskFlow Live">
+<meta property="og:description" content="Capstone: TaskFlow live — deployed API plus frontend wiring, pre-flight checklist, grading rubric, graduation.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0038-capstone-taskflow-live.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0038 — Capstone: TaskFlow Live">
+<meta name="twitter:description" content="Capstone: TaskFlow live — deployed API plus frontend wiring, pre-flight checklist, grading rubric, graduation.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0038 — Capstone: TaskFlow Live", "description": "Capstone: TaskFlow live — deployed API plus frontend wiring, pre-flight checklist, grading rubric, graduation.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0037-docker-and-graceful.html">← 0037</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Capstone</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 8 · CAPSTONE · FINAL ASSESSMENT</p>
+<h1>TaskFlow, <span class="u-stroke">live</span></h1>
+<p class="subtitle">One project, one proof: your API serves strangers on the internet — with a frontend calling it.</p>
+<div class="meta">
+<span>⏱ ~10h build</span><span>Prerequisites: all gates</span><span>Objectives: integrate · harden · graduate</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Lessons prove pieces; employers and users meet wholes. The capstone is the whole: deployed API + managed Postgres + a frontend (yours or the provided minimal client) doing register → login → projects → tasks — with tests green, docs served, and the checklist below all ticked.</div>
+
+<h2>1 · The final architecture (everything, one chart)</h2>
+<div class="mermaid">flowchart LR
+  subgraph USER["user's browser"]
+    FE["frontend (hosted)<br/>fetch + cookies"]
+  end
+  subgraph CLOUD["host"]
+    API3["API (Node+Express)<br/>guard→judge→service→Prisma"]
+    DB10[("managed Postgres<br/>migrated, backed up")]
+  end
+  FE -->|"https + credentials"| API3
+  API3 -->|"pool, $N"| DB10
+  CI["CI: tests+types<br/>on every push"] -.->|"gates"| API3
+</div>
+<p class="diagram-cap"><strong>Chart 123 — The whole course, one picture.</strong> Every box is a module; every arrow a lesson. If you can narrate this chart for five minutes, you are job-conversation ready (not job-guaranteed — skills open doors, they don't hand out jobs).</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>browser → https API → pool → Postgres · CI gates pushes · /docs serves menu</pre>
+</details>
+
+<h2>2 · Frontend wiring (the last mile)</h2>
+<div class="mermaid">sequenceDiagram
+  participant F as frontend
+  participant A as API
+  F->>A: POST /auth/register+login (credentials: include)
+  A->>F: wristband cookie
+  F->>A: GET /projects (cookie auto)
+  F->>A: CRUD /tasks (cookie auto)
+</div>
+<p class="diagram-cap"><strong>Chart 124 — Wiring sequence.</strong> <code class="inline">credentials: "include"</code> on every fetch (cookies don't ride by default) + exact CORS origin + None/Secure or Lax per chart 119.</p>
+<details><summary><strong>Source + minimal client (click)</strong></summary>
+<p>Any frontend works (React/Vite/plain): base URL from env (<code class="inline">VITE_API_URL</code>), one fetch wrapper adding credentials + JSON headers, login form → project list → task CRUD. Keep it ugly — the API is what's graded.</p>
+<pre>fetch(API + path, { credentials: "include", headers: {...}, body })</pre>
+</details>
+
+<h2>3 · Pre-flight checklist (run it all)</h2>
+<div class="mermaid">flowchart TD
+  T7["tests green (unit+matrix)"] --> D7["docs served at /docs"]
+  D7 --> S8["secrets vaulted, .env ignored"]
+  S8 --> M8["migrate-on-deploy wired"]
+  M8 --> H6["/health hits DB, 200"]
+  H6 --> C8["CORS exact + cookies ride"]
+  C8 --> G8["graceful drain present"]
+  G8 --> LIVE["LIVE + frontend wired"]
+</div>
+<p class="diagram-cap"><strong>Chart 125 — Eight gates, in order.</strong> Each box is one command or page-load to verify. Red anywhere = fix before announcing.</p>
+
+<h2>4 · Grading rubric</h2>
+<table>
+<tr><th>Area</th><th>Pass</th><th>Distinction</th></tr>
+<tr><td>Deployed API + DB</td><td>Public URL, health 200, migrated</td><td>Zero-downtime redeploy shown (drain logs)</td></tr>
+<tr><td>Auth + ownership</td><td>Register/login/logout; cross-user 404s</td><td>Rate-cap + expiry demonstrated live</td></tr>
+<tr><td>Validation + errors</td><td>400s name faults; JSON everywhere</td><td>Docs match rooms (coverage test green)</td></tr>
+<tr><td>Tests</td><td>Unit + matrix green in CI</td><td>Leak-break drill recorded (red→green)</td></tr>
+<tr><td>Frontend wiring</td><td>CRUD through cookies end-to-end</td><td>Deployed frontend, not localhost</td></tr>
+<tr><td>Docs + polish</td><td>/docs served, README run-book</td><td>5-min architecture narration</td></tr>
+</table>
+<p>Pass = all six “Pass” boxes. Extensions (pick one): teams/shared projects, file attachments, email verification, websockets presence — each reuses the same triangle (judge/catch/prove).</p>
+
+<h2>5 · Common capstone traps</h2>
+<div class="callout"><strong>“Localhost URLs in prod frontend.”</strong> Works for you, nobody else. Fix: API base from env, per environment — chart 124's wrapper reads it once.</div>
+<div class="callout"><strong>“Forgot credentials:include.”</strong> Login 200s, everything else 401s — the silent-drop's cousin. Fix: wrapper sets it globally; one test asserts a cookie ride.</div>
+<div class="callout warn"><strong>“Announced before checklist.”</strong> Users find the red you skipped. Fix: chart 125 top-to-bottom, screenshots per box, then announce.</div>
+
+<div class="quiz">
+<h3>Course exit check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="same code, vault secrets, managed DB, migrate-first, logs, repeatable pushes.">
+<p>1. Shipping discipline is?</p>
+<button data-key="a">Drag files to server</button>
+<button data-key="b">Checklist, git-push deploys</button>
+<button data-key="c">Hope plus refresh loop</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="fetch omits cookies unless told — every authed call needs it.">
+<p>2. Cookies ride when?</p>
+<button data-key="a">Always, by default ever</button>
+<button data-key="b">Never, use headers instead</button>
+<button data-key="c">credentials include set</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="lessons prove pieces; the capstone proves the whole serves strangers.">
+<p>3. Capstone proves what?</p>
+<button data-key="a">Whole serves strangers live</button>
+<button data-key="b">Quizzes passed with ease</button>
+<button data-key="c">Videos watched till end</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="skills open doors; promises would be dishonest — keep building in public.">
+<p>4. Course completion means?</p>
+<button data-key="a">Job guaranteed at once</button>
+<button data-key="b">Competence, keep building</button>
+<button data-key="c">Learning finished forever</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>6 · Summary + graduation</h2>
+<div class="callout why">From <code class="inline">fetch</code> to shipped: <strong>messages → addresses → contracts → CLI → servers → Express → Postgres → auth → tests → deploy → live</strong>. You can independently build, test, secure, document, and deploy a backend API — the mission, accomplished. Keep the triangle (judge/catch/prove) on everything you build next.</div>
+
+<div class="callout">
+<strong>Primary sources (the whole shelf):</strong> <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP">MDN HTTP</a> · <a href="https://nodejs.org/en/docs">Node</a> · <a href="https://expressjs.com/">Express</a> · <a href="https://www.postgresql.org/docs/">Postgres</a> · <a href="https://www.prisma.io/docs/">Prisma</a> · <a href="https://cheatsheetseries.owasp.org/">OWASP</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0037-docker-and-graceful.html">← 0037 Docker</a>
+<a class="btn primary" href="../index.html">Course home →</a>
+</div>
+
+<details style="margin-top:28px"><summary><strong>Instructor guide (grading + extensions)</strong></summary>
+<p>Grade strictly on Pass boxes; distinction needs evidence (logs, recordings). Extension guidance: shared projects = new membership table + role checks (0030 patterns); attachments = object storage + signed URLs (new dial family); email verify = token table + expiry (session patterns); presence = websockets after HTTP base solid (out of scope, point to docs).</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Q4a exists to be wrong — the course never promises employment.</p>
+</details>
+
+<footer><strong>Capstone 0038</strong> · TaskFlow live · Full shelf sources · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a> · Back to <a href="../index.html">course home</a></footer>
+</main>
+</body>
+</html>

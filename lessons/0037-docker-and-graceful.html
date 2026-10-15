@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0037 — Docker: the Building in a Box</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Docker plus graceful shutdown: recipe-image-container-compose, cached layers, drain-on-SIGTERM, service hostnames.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0037-docker-and-graceful.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0037 — Docker: the Building in a Box">
+<meta property="og:description" content="Docker plus graceful shutdown: recipe-image-container-compose, cached layers, drain-on-SIGTERM, service hostnames.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0037-docker-and-graceful.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0037 — Docker: the Building in a Box">
+<meta name="twitter:description" content="Docker plus graceful shutdown: recipe-image-container-compose, cached layers, drain-on-SIGTERM, service hostnames.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0037 — Docker: the Building in a Box", "description": "Docker plus graceful shutdown: recipe-image-container-compose, cached layers, drain-on-SIGTERM, service hostnames.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0036-ship-it.html">← 0036</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0037</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 8 · DEPLOY + PRODUCTION · LESSON 2</p>
+<h1>The building <span class="u-stroke">in a box</span></h1>
+<p class="subtitle">One sitting, one win: your API runs identically anywhere — plus shutdowns that finish sentences.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Lesson 0036 (ship posture)</span><span>Objectives: image · compose · graceful</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> “Works on my machine” is a version-skew confession: your Node 24 vs their 20, your .env vs their guesses. Docker packs machine + code + recipe into one sealed box that runs the same everywhere. Plus one manners lesson: killing mid-knock corrupts — shutdowns must finish sentences.</div>
+
+<h2>1 · The mental model: recipe, box, fleet</h2>
+<div class="mermaid">flowchart LR
+  DF["Dockerfile<br/>recipe: base + copy + start"]
+  DF --> IMG["image<br/>sealed box, versioned"]
+  IMG --> CON2["container<br/>box running somewhere"]
+  CON2 --> CMP["compose<br/>API box + DB box, one command"]
+</div>
+<p class="diagram-cap"><strong>Chart 120 — Three nouns.</strong> Recipe builds boxes; boxes run anywhere; compose runs the neighborhood (API + Postgres together, locally).</p>
+<details><summary><strong>Source + layer rule (click)</strong></summary>
+<p>Rule: order Dockerfile slow-changing first (deps install caches), fast-changing last (your code). Rebuilds then take seconds, not minutes. No secrets in layers (0036's law survives boxing). Source: <a href="https://docs.docker.com/get-started/">Docker get started</a>.</p>
+<pre>base → deps (cached) → code (fresh) → start</pre>
+</details>
+
+<h2>2 · Graceful shutdown: finish sentences</h2>
+<div class="mermaid">sequenceDiagram
+  participant H as host (SIGTERM)
+  participant A as app
+  participant K as in-flight knock
+  H->>A: please stop
+  A->>A: stop listening (no new)
+  A->>K: finish reply
+  K->>A: done
+  A->>A: close pool → exit 0
+</div>
+<p class="diagram-cap"><strong>Chart 121 — Polite exit.</strong> Deploys restart constantly — every restart without this chart midwifes corrupt writes and hanging clients.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>SIGTERM → close server → drain → close pool → exit · hard timeout ~10s</pre>
+</details>
+
+<h2>3 · Compose: the neighborhood</h2>
+<div class="mermaid">flowchart LR
+  DEV2["you<br/>docker compose up"] --> API2["api box :3000<br/>code + deps"]
+  DEV2 --> DB9["db box :5432<br/>postgres + volume"]
+  API2 <-->|"DATABASE_URL<br/>host=db"| DB9
+</div>
+<p class="diagram-cap"><strong>Chart 122 — Local prod-twin.</strong> Volumes keep DB data across restarts; <code class="inline">db</code> hostname replaces localhost inside the network.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>services: api (build .) + db (postgres:17, volume) · api waits db healthy</pre>
+</details>
+
+<h2>4 · Live demo: box + manners (12 min)</h2>
+<pre># file: Dockerfile
+FROM node:24-alpine
+WORKDIR /srv/app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
+EXPOSE 3000
+CMD ["node", "server.mjs"]</pre>
+<pre># file: compose.yaml (local twin)
+services:
+  api:
+    build: .
+    ports: ["3000:3000"]
+    environment:
+      DATABASE_URL: postgresql://postgres:devpw@db:5432/taskflow
+      FRONTEND_URL: http://localhost:5173
+    depends_on: [db]
+  db:
+    image: postgres:17
+    environment: { POSTGRES_PASSWORD: devpw }
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+volumes: { pgdata: {} }</pre>
+<pre>// graceful (server.mjs — the only code change):
+const server = app.listen(PORT, ...);
+for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, async () =&gt; {
+  console.log(`${sig}: draining...`);
+  server.close(async () =&gt; { await pool.end(); console.log("drained. exit 0"); process.exit(0); });
+  setTimeout(() =&gt; process.exit(1), 10_000).unref(); // hard stop if stuck
+});</pre>
+<pre>docker compose up --build
+node -e "console.log(await (await fetch('http://localhost:3000/health')).json())"
+<span class="c"># expected: { ok:true } — same building, boxed. Stop with Ctrl+C: watch "draining...".</span></pre>
+<p>Why it works: <code class="inline">npm ci</code> installs lock-exact (chart 14's receipt, honored); <code class="inline">server.close</code> stops intake while finishing flights; pool drains before exit (no severed queries); depends_on orders startup (migrations still run pre-serve).</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Local twin done — hosts take the same image (or build the same Dockerfile) with vault dials. 0038 wires the frontend, runs the full checklist, and grades the capstone. Compose stays as every contributor's one-command start.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“COPY . before npm ci.”</strong> Every code edit invalidates the dep cache — 3-minute rebuilds. Fix: chart-120 order (manifest first, code last).</div>
+<div class="callout"><strong>“localhost as DB host in box.”</strong> Box-localhost is the box, not your machine — connection refused. Fix: service hostname (<code class="inline">db</code>) inside compose networks.</div>
+<div class="callout warn"><strong>“No graceful handler.”</strong> Deploys SIGTERM mid-write — torn rows, confused clients. Fix: drain pattern above in every server you ever ship.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Write Dockerfile + compose; <code class="inline">up --build</code>; paste health + one full CRUD knock proving the twin works.</li>
+<li>Trigger drain: start a slow knock (or watch logs), Ctrl+C, paste the “draining…” lines + exit.</li>
+<li>Time a code-only rebuild (touch a comment, rebuild) — paste seconds proving cache order.</li>
+</ol>
+<p><em>Done means:</em> twin health + drain paste + cached rebuild time. Capstone (0038) is next — the course graduates.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="same sealed box everywhere — version skew becomes impossible.">
+<p>1. Docker buys what?</p>
+<button data-key="a">Faster JavaScript engine</button>
+<button data-key="b">Same box every machine</button>
+<button data-key="c">Free cloud hosting tier</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="manifest-first caches deps; code-last rebuilds in seconds.">
+<p>2. COPY order is?</p>
+<button data-key="a">Code first, deps later</button>
+<button data-key="b">Secrets first, all baked</button>
+<button data-key="c">Deps cached, code last</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="finish flights, drain pool, then exit — restarts are constant.">
+<p>3. SIGTERM means what?</p>
+<button data-key="a">Drain, then exit clean</button>
+<button data-key="b">Die instantly, drop all</button>
+<button data-key="c">Ignore, keep serving on</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="each box has its own localhost — networks use service names.">
+<p>4. API reaches DB via?</p>
+<button data-key="a">Localhost like dev machine</button>
+<button data-key="b">Service hostname, db host</button>
+<button data-key="c">Public internet round trip</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Boxed and polite: <strong>recipe→image→container→compose, cache-ordered layers, no baked secrets, drain-on-SIGTERM, service hostnames</strong>. Next: the capstone — frontend wired, checklist run, course graduated.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://docs.docker.com/get-started/">Docker get started</a> · <a href="https://docs.docker.com/compose/">Compose</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0036-ship-it.html">← 0036 Ship it</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Capstone (0038) comes next — final assessment.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: twin health <code class="inline">{ok:true}</code> via compose doors; drain paste shows signal + drained + exit 0; cached rebuild should be seconds (npm ci layer skipped, only COPY+ layers).</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “Docker = deploy” — correct: boxing is packaging; hosts still run, route, and vault.</p>
+</details>
+
+<footer><strong>Lesson 0037</strong> · Module 8 · Docker + graceful · Sources: <a href="https://docs.docker.com/get-started/">Docker</a> · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

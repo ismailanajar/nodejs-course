@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0036 — Ship It: From Laptop to Internet</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Ship it: from laptop to internet — PORT dials, vault secrets, migrate-before-serve, DB health, production CORS and cookies.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0036-ship-it.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0036 — Ship It: From Laptop to Internet">
+<meta property="og:description" content="Ship it: from laptop to internet — PORT dials, vault secrets, migrate-before-serve, DB health, production CORS and cookies.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0036-ship-it.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0036 — Ship It: From Laptop to Internet">
+<meta name="twitter:description" content="Ship it: from laptop to internet — PORT dials, vault secrets, migrate-before-serve, DB health, production CORS and cookies.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0036 — Ship It: From Laptop to Internet", "description": "Ship it: from laptop to internet — PORT dials, vault secrets, migrate-before-serve, DB health, production CORS and cookies.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0035-module-7-checkpoint.html">← 0035</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0036</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 8 · DEPLOY + PRODUCTION · LESSON 1</p>
+<h1>From laptop <span class="u-stroke">to internet</span></h1>
+<p class="subtitle">One sitting, one win: you can name every step between “works here” and “works for everyone” — then do it.</p>
+<div class="meta">
+<span>⏱ 35–45 min</span><span>Prerequisites: Module 7 gate</span><span>Objectives: host · env · migrate-live</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Localhost is a private island: your dials, your database, your ports, your forgiveness. The internet is a public building: strangers knock, secrets must differ, the database lives elsewhere, and “restart and see” wakes users. Shipping is a checklist, not courage — today the list.</div>
+
+<h2>1 · The mental model: island vs building</h2>
+<div class="mermaid">flowchart LR
+  subgraph ISL["ISLAND (dev)"]
+    direction TB
+    D6["localhost doors<br/>dev secrets<br/>console peeking"]
+  end
+  subgraph BLD["BUILDING (prod)"]
+    direction TB
+    P5["public doors :443<br/>vault secrets<br/>logs + alerts"]
+  end
+  ISL -.->|"same code<br/>different discipline"| BLD
+</div>
+<p class="diagram-cap"><strong>Chart 117 — Chart 5 grown up.</strong> Same three contrasts (ports, protocol, errors) plus three new ones: secrets source, database address, deploy repeatability.</p>
+<details><summary><strong>Source + six-difference list (click)</strong></summary>
+<p>1) Doors: named ports → 443/https. 2) Secrets: .env file → provider vault/vars (never in git, never in images). 3) DB: container-local → managed Postgres + <code class="inline">DATABASE_URL</code> dial. 4) Migrations run on deploy (chart 77, live). 5) Errors: console → structured logs. 6) Deploys: repeatable from git (push → build → run), never drag-and-drop.</p>
+<pre>same code · vault secrets · managed DB · migrate on deploy · logs · git-push deploys</pre>
+</details>
+
+<h2>2 · Deploy sequence (API + DB)</h2>
+<div class="mermaid">sequenceDiagram
+  participant Y as you (git push)
+  participant H as host (build)
+  participant M as migrate step
+  participant D as managed PG
+  participant W as web (https)
+  Y->>H: push main
+  H->>H: npm ci + build
+  H->>M: run migrations
+  M->>D: schema converges
+  H->>W: start, health passes
+  W->>Y: live URL
+</div>
+<p class="diagram-cap"><strong>Chart 118 — Push-to-live.</strong> Migrations run <em>before</em> the new code serves — schema and code arrive compatible, never staggered.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>push → install → migrate → start → health-check → live</pre>
+</details>
+
+<h2>3 · Production CORS + cookies, final form</h2>
+<div class="mermaid">flowchart TD
+  F6["FRONTEND_URL=https://app.example<br/>exact origin, no wildcard"]
+  F6 --> C7["cors({ origin, credentials: true })"]
+  C7 --> K7["cookie: Secure + SameSite=None?"]
+  K7 --> NOTE["cross-site API+app → SameSite=None REQUIRES Secure+https"]
+</div>
+<p class="diagram-cap"><strong>Chart 119 — Prod cookie truth.</strong> Same API + same domain = Lax stands. Split domains = None+Secure+https, all three or browsers drop the wristband silently.</p>
+<details><summary><strong>Source + silent-drop warning (click)</strong></summary>
+<p>Silent-drop is the nastiest prod bug: login 200s, next knock 401s, no error anywhere — the browser binned the cookie. Diagnose via DevTools Application→Cookies (absent = flags wrong). Localhost is exempt from Secure; prod never is.</p>
+<pre>same-site → Lax · cross-site → None + Secure + https · exact origins</pre>
+</details>
+
+<h2>4 · Live demo: production-ready checklist (12 min)</h2>
+<p>Apply to TaskFlow — provider-agnostic (Render/Fly/Railway/VPS all honor the same shape):</p>
+<pre>// 1 — env-driven everything (app.mjs top):
+const PORT = Number(process.env.PORT ?? 3000); // hosts ASSIGN ports — never hardcode
+// 2 — CORS final:
+app.use(cors({ origin: (process.env.FRONTEND_URL ?? "http://localhost:5173").split(","), credentials: true }));
+// 3 — trust proxy for rate-limit + secure cookies behind host proxies:
+app.set("trust proxy", 1);
+// 4 — /health that checks the DB (hosts route traffic by it):
+app.get("/health", async (req, res) =&gt; {
+  try { await query("SELECT 1"); res.json({ ok: true }); }
+  catch { res.status(500).json({ ok: false }); }
+});
+// 5 — migrate on boot (before listen): await migrate(); then listen.
+// 6 — start script: "start": "node server.mjs" (hosts run `npm start`)</pre>
+<pre>FRONTEND_URL=http://localhost:5173 NODE_ENV=production PORT=3000 npm start
+node -e "console.log(await (await fetch('http://localhost:3000/health')).json())"
+<span class="c"># expected: { ok:true } — DB-reaching health, prod posture, local doors</span></pre>
+<p>Why it works: <code class="inline">PORT</code> dial obeys the host; <code class="inline">trust proxy</code> un-blinds IPs (rate limits hit attackers, not the proxy); DB health fails traffic <em>away</em> from broken instances automatically.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>0037 containers this (Dockerfile + compose + graceful shutdown); 0038 wires the real frontend and grades the capstone. After this lesson your app is deployable anywhere that runs Node + Postgres — the skill transfers across every host you'll ever meet.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Hardcoded 3000 in prod.”</strong> Host assigns 10000, app listens 3000 → health never passes → killed. Fix: <code class="inline">process.env.PORT</code> always, default for dev only.</div>
+<div class="callout"><strong>“Migrations skipped.”</strong> Code expects column the DB lacks → 500s everywhere post-deploy. Fix: migrate step before start, in the deploy pipeline — chart 118 order is law.</div>
+<div class="callout warn"><strong>“Secrets baked in image.”</strong> <code class="inline">ENV DATABASE_URL=...</code> in Dockerfile — leaked to registries, logs, layers. Fix: secrets enter at <em>run</em> (vault/vars), never at build.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Apply all six checklist items; run prod-posture locally; paste <code class="inline">/health</code> + one CORS header proving the origin echo.</li>
+<li>Break PORT deliberately (hardcode 3000 + <code class="inline">PORT=4000</code> dial): paste proof it now obeys the dial after the fix.</li>
+<li>Write your deploy order (push→?→?→live) from memory; diff against chart 118.</li>
+</ol>
+<p><em>Done means:</em> health paste + PORT paste + order sheet. Lesson 0037 (Docker + graceful) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="hosts assign ports — hardcoded doors fail health and die.">
+<p>1. Prod port comes from?</p>
+<button data-key="a">Hardcoded 3000, always fine</button>
+<button data-key="b">PORT dial, host assigns</button>
+<button data-key="c">Random each request anew</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="schema and code must arrive compatible — migrate before serving.">
+<p>2. Migrate runs when?</p>
+<button data-key="a">Weekly by hand, maybe</button>
+<button data-key="b">After serving new code</button>
+<button data-key="c">Pre-start, each deploy</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="absent cookie + 200 login + 401 next = flags dropped it silently.">
+<p>3. Login 200, next 401?</p>
+<button data-key="a">Cookie flags dropped silently</button>
+<button data-key="b">Password changed itself magically</button>
+<button data-key="c">Database deleted all rows</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="run-time vault values; build-time baking leaks everywhere.">
+<p>4. Secrets enter when?</p>
+<button data-key="a">Baked in image layers</button>
+<button data-key="b">Run time, vault vars</button>
+<button data-key="c">Commit in .env file</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Shippable posture: <strong>PORT dial, vault secrets at run, migrate-before-serve, DB health, exact CORS + credentialed cookies, trust proxy</strong>. Next: Docker — same building, packed in a box.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://docs.docker.com/get-started/">Docker get started</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS">MDN CORS</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0035-module-7-checkpoint.html">← 0035 Checkpoint</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0037 (Docker + graceful shutdown) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: health must show <code class="inline">{ok:true}</code> with DB reach; CORS paste echoes the configured origin (not *); PORT drill proves dial-wins; order sheet: push→install→migrate→start→health→live.</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “CORS as security” — correct again (0030): browser law, defense-in-depth, not a wall.</p>
+</details>
+
+<footer><strong>Lesson 0036</strong> · Module 8 · Ship it · Sources: <a href="https://docs.docker.com/get-started/">Docker</a> · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>
