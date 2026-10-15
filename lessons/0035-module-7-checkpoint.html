@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0035 — Module 7 Checkpoint: Gate to Deploy</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Module 7 checkpoint: draw pyramid and matrix blind, hunt four reds, drill double-green — the gate to deploy.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0035-module-7-checkpoint.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0035 — Module 7 Checkpoint: Gate to Deploy">
+<meta property="og:description" content="Module 7 checkpoint: draw pyramid and matrix blind, hunt four reds, drill double-green — the gate to deploy.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0035-module-7-checkpoint.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0035 — Module 7 Checkpoint: Gate to Deploy">
+<meta name="twitter:description" content="Module 7 checkpoint: draw pyramid and matrix blind, hunt four reds, drill double-green — the gate to deploy.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0035 — Module 7 Checkpoint: Gate to Deploy", "description": "Module 7 checkpoint: draw pyramid and matrix blind, hunt four reds, drill double-green — the gate to deploy.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0034-docs-and-types.html">← 0034</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Checkpoint</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 7 · CHECKPOINT · GATE TO DEPLOY</p>
+<h1>Proven, <span class="u-stroke">blind</span></h1>
+<p class="subtitle">One sitting, one win: you redraw the proof pyramid from memory — then the course ships.</p>
+<div class="meta">
+<span>⏱ 40–50 min</span><span>Prerequisites: Lessons 0032–0034</span><span>Objectives: retrieve · triage · gate</span>
+</div>
+</header>
+
+<div class="callout why"><strong>Same deal:</strong> draw first, compare second. Module 8 deploys on top of green — this gate proves the net holds.</div>
+
+<h2>0 · Your Module 7 journey on one chart</h2>
+<div class="mermaid">journey
+  title Module 7 — what you proved
+  section 0032 Units
+    Services direct, red-first: 4: You
+    deepEqual over equal: 3: You
+  section 0033 Wiring
+    Supertest sans ports: 4: You
+    Auth matrix automated: 5: You
+  section 0034 Truth
+    Docs generated/guarded: 4: You
+    Types at boundaries: 3: You
+  section 0035 Today
+    Redraw it all blind: 5: You
+</div>
+<p class="diagram-cap"><strong>Chart 111 — Journey.</strong> Shaky task → re-open its lesson before exercises.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>journey
+  title Module 7 — what you proved
+  ...</pre>
+</details>
+
+<h2>1 · Cover-and-draw #1: pyramid + case flow</h2>
+<p><strong>Blank page.</strong> Draw the pyramid (3 layers with speeds) and one integration case flow. Then diff:</p>
+<div class="mermaid">flowchart TD
+  PY["units (many, ms) → integration (some, s) → e2e (few, min)"]
+  FL["seed → jar-login → knock → assert → wipe"]
+</div>
+<p class="diagram-cap"><strong>Chart 112 — Shape + flow.</strong> Two drawings, one page: what tests exist, how one runs.</p>
+<details><summary><strong>Source + grading (click)</strong></summary>
+<p>Full marks = 3 layers with relative speeds + 5-step flow with jar and wipe named. Missing wipe loses half (isolation is the point).</p>
+<pre>units → integration → e2e · seed → login → knock → assert → wipe</pre>
+</details>
+
+<h2>2 · Triangle + matrix, pocket charts</h2>
+<div class="mermaid">flowchart LR
+  SC3["schemas"] --> JJ["judge runtime"]
+  TY["types"] --> CC["catch writing"]
+  TE["tests"] --> PP["prove pushes"]
+</div>
+<p class="diagram-cap"><strong>Chart 113 — Triangle.</strong> Judge, catch, prove — one family.</p>
+<div class="mermaid">flowchart TD
+  MM["private room ×"] --> S401["stranger 401"]
+  MM --> O200["owner 200/201"]
+  MM --> T404["other 404"]
+  MM --> B400["junk 400"]
+</div>
+<p class="diagram-cap"><strong>Chart 114 — Matrix.</strong> Four knocks per room, no exceptions.</p>
+
+<h2>3 · Testing triage</h2>
+<div class="mermaid">flowchart TD
+  E8["suite failed?!"] --> Q17{"which layer?"}
+  Q17 -- "unit red" --> AU8["logic broke — read branch name"]
+  Q17 -- "integration red" --> BU8["wiring broke — mount/guard/scope?"]
+  Q17 -- "passes alone, fails suite" --> CU8["leak — wipe missing, order matters"]
+  Q17 -- "flaky sometimes" --> DU8["real I/O/timing inside — isolate or await"]
+</div>
+<p class="diagram-cap"><strong>Chart 115 — Red taxonomy.</strong> Four reds, four hunts — never “re-run and pray”.</p>
+
+<h2>4 · Where Module 7 hours go</h2>
+<div class="mermaid">pie title Module 7 stuck-hours (illustrative, not data)
+  "test DB + isolation" : 35
+  "auth matrix setup" : 30
+  "unit vs wiring split" : 20
+  "docs generation" : 15
+</div>
+<p class="diagram-cap"><strong>Chart 116 — Illustrative split.</strong> Isolation dominates — the unglamorous skill that makes suites trustworthy.</p>
+
+<h2>5 · Retrieval exercises (blank page, then check)</h2>
+<ol class="steps">
+<li><strong>Shape redraw</strong> — charts 112–114 from memory (§1 rubric).</li>
+<li><strong>Triage ×3</strong> — hunt + fix for: (a) suite green alone, red together, (b) new room with only 200-tests, (c) docs page missing a new endpoint.</li>
+<li><strong>Live drill</strong> — cold: one service test + one 4-knock matrix test on a scratch room; paste double-green.</li>
+</ol>
+<p><em>Done means:</em> shape sheet + three hunts + double-green paste. When all pass, Module 8 is unlocked — shipping.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="many fast always-run units; fewer slow integration; rare e2e journeys.">
+<p>1. Pyramid shape is?</p>
+<button data-key="a">All e2e, full journeys</button>
+<button data-key="b">Wide fast base, thin tip</button>
+<button data-key="c">Only manual QA clicks</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="dedicated DB, name-guarded, wiped per test — dev data sacred.">
+<p>2. Integration DB rule?</p>
+<button data-key="a">Prod with extra care</button>
+<button data-key="b">Dev, shared with app</button>
+<button data-key="c">Test DB, wiped clean</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="schemas judge, types catch, tests prove — one truth family.">
+<p>3. Triangle says what?</p>
+<button data-key="a">Judge catch prove trio</button>
+<button data-key="b">Logs metrics traces set</button>
+<button data-key="c">Dev stage prod tiers</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="leftover rows order tests — isolation is the fix, always.">
+<p>4. Alone green, suite red?</p>
+<button data-key="a">Increase timeout limits now</button>
+<button data-key="b">Leak: wipe per test</button>
+<button data-key="c">Delete failing test file</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="unseen red may assert nothing — break once to calibrate.">
+<p>4b. Never seen red?</p>
+<button data-key="a">Celebrate perfect code base</button>
+<button data-key="b">Break once, watch naming</button>
+<button data-key="c">Ship it, tests optional</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>6 · Summary + gate to Module 8</h2>
+<div class="callout why">Module 7 is yours when: <strong>you draw pyramid+flow blind, recite triangle+matrix, hunt all four reds, and drill double-green cold</strong>. Next: Module 8 — the course ships: hosting, Docker, capstone.</div>
+
+<div class="callout">
+<strong>Primary sources (re-read only misses):</strong> <a href="https://nodejs.org/api/test.html">node:test</a> · <a href="https://github.com/ladjs/supertest">supertest</a> · <a href="https://swagger.io/specification/">OpenAPI</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0034-docs-and-types.html">← 0034 Docs+types</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Module 8 starts at 0036 — ship it.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Ex2: (a) leak → add wipe+reseed. (b) room untested → add 401/404/400 cases (chart 114). (c) drift → coverage test or regen step missing in workflow. Ex3 scratch room can reuse tasks shape with fresh table.</p>
+<p>Quiz: 1b, 2c, 3a, 4b, 4b→b. Gate: ≥4/5 + double-green = Module 8 unlocked.</p>
+</details>
+
+<footer><strong>Checkpoint 0035</strong> · Module 7 gate · 6 charts · Sources: test/supertest/OpenAPI · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

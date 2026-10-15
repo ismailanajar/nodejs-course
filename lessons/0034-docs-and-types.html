@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0034 — Docs That Stay True, Types That Catch</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Docs that stay true plus types that catch: generated OpenAPI, coverage tests, and JSDoc-first TypeScript at boundaries.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0034-docs-and-types.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0034 — Docs That Stay True, Types That Catch">
+<meta property="og:description" content="Docs that stay true plus types that catch: generated OpenAPI, coverage tests, and JSDoc-first TypeScript at boundaries.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0034-docs-and-types.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0034 — Docs That Stay True, Types That Catch">
+<meta name="twitter:description" content="Docs that stay true plus types that catch: generated OpenAPI, coverage tests, and JSDoc-first TypeScript at boundaries.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0034 — Docs That Stay True, Types That Catch", "description": "Docs that stay true plus types that catch: generated OpenAPI, coverage tests, and JSDoc-first TypeScript at boundaries.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0033-http-integration-tests.html">← 0033</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0034</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 7 · TESTING + MAINTAINABILITY · LESSON 3</p>
+<h1>Docs true, <span class="u-stroke">types</span> catching</h1>
+<p class="subtitle">One sitting, one win: your API describes itself (OpenAPI) and your editor catches shape bugs (TypeScript).</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Lesson 0033 (matrix green)</span><span>Objectives: openapi · ts basics</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> The contract (lesson 0004's menu) now lives in three places — Zod schemas, test assertions, and your memory — and they've already drifted twice. Docs rot because writing is separate from code; types rot nothing because the compiler re-checks every keystroke. Today: one description generated from truth, plus types where they pay most.</div>
+
+<h2>1 · The mental model: menu printed from kitchen</h2>
+<div class="mermaid">flowchart LR
+  Z2["Zod schemas<br/>(truth)"] --> GEN["generator<br/>(zod-to-openapi)"]
+  GEN --> DOC["openapi.json<br/>menu, always current"]
+  DOC --> UI2["Swagger UI<br/>try-it docs page"]
+</div>
+<p class="diagram-cap"><strong>Chart 108 — Generated menu.</strong> Docs derive from the same schemas that judge — drift becomes impossible by construction, not discipline.</p>
+<details><summary><strong>Source + rule (click)</strong></summary>
+<p>Rule: describe once (Zod), publish everywhere (rooms judge, docs display, clients generate). Hand-written API docs are lesson-0004 nostalgia — sweet, then stale. Source: <a href="https://swagger.io/specification/">OpenAPI spec</a>.</p>
+<pre>schemas → openapi.json → Swagger UI at /docs</pre>
+</details>
+
+<h2>2 · TypeScript: shapes at write time</h2>
+<div class="mermaid">flowchart TD
+  JS2["JS today<br/>shapes in your head"] --> TS["TS: annotate boundaries<br/>req bodies, service I/O"]
+  TS --> ED["editor red squiggles<br/>before runtime"]
+  ED --> SAME["same JS runs<br/>types erased"]
+</div>
+<p class="diagram-cap"><strong>Chart 109 — Types where they pay.</strong> Annotate boundaries (what enters/exits), not every line — inference covers the middle. Node 24 strips types natively (no build step for erasable syntax).</p>
+<details><summary><strong>Source + scope rule (click)</strong></summary>
+<p>Scope: DTOs (data shapes), service signatures, Prisma-generated types (free!). Skip: fancy generics, decorators — Module 7 buys safety per keystroke, not a type system degree. Source: <a href="https://www.typescriptlang.org/docs/">TypeScript docs</a>, <a href="https://nodejs.org/en/learn/typescript/run-natively">Node native TS</a>.</p>
+<pre>type Task = { id: string; title: string; done: boolean }</pre>
+</details>
+
+<h2>3 · Docs + tests + types triangle</h2>
+<div class="mermaid">flowchart TD
+  SC2["schemas (Zod)"] --> RM["rooms judge"]
+  SC2 --> DC["docs display"]
+  TP["types (TS)"] --> ED2["editor catches"]
+  TT["tests"] --> PV["CI proves"]
+  RM --> TT
+</div>
+<p class="diagram-cap"><strong>Chart 110 — Triangle of truth.</strong> Three checkers, one source family: schemas judge at runtime, types judge at write time, tests prove on every push.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>schemas → rooms+docs · types → editor · tests → CI</pre>
+</details>
+
+<h2>4 · Live demo: served docs + first types (10 min)</h2>
+<pre>npm install swagger-ui-express zod-to-openapi
+<span class="c"># openapi.json generated from your Zod schemas (script below) → served at /docs:</span></pre>
+<pre>// file: docs.mjs — schemas → OpenAPI (run at startup, served fresh)
+import { OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
+import { taskCreate, taskUpdate } from "./schemas.mjs";
+// register schemas once, generate document, serve:
+const generator = new OpenApiGeneratorV3(/* registry with paths — see key */);</pre>
+<pre>// minimal honest version (no new deps): hand-write openapi.json ONCE from schemas,
+// then ADD A TEST asserting every room's path exists in it:
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import spec from "../openapi.json" with { type: "json" };
+test("docs cover rooms", () =&gt; {
+  for (const p of ["/health", "/tasks", "/tasks/{id}", "/auth/register", "/auth/login"])
+    assert.ok(spec.paths[p], `missing ${p}`);
+});</pre>
+<pre>// types: rename db.mjs → db.mts? No — start with JSDoc + checkJs (zero migration):
+// jsconfig: { "compilerOptions": { "checkJs": true, "strict": true }, "include": ["services/"] }
+/** @param {{ done?: string, page?: number, limit?: number }} q */
+export function listTasks(tasks, { done, page = 1, limit = 10 }) { /* unchanged body */ }
+<span class="c"># npx tsc --noEmit → editor + CI catch wrong-shape callers. Full .ts migration: Module 8+ elective.</span></pre>
+<p>Why it works: the docs-coverage test turns drift into red (docs stay true because CI enforces); JSDoc types buy 80% of TypeScript with 0% migration — the pragmatic backend default.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Frontend integration (Module 8) codes against <code class="inline">/docs</code>, not memory; refactors run tests + types before humans review. The triangle is the maintainability story: judge (schemas), catch (types), prove (tests) — every future feature repeats it.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Docs as screenshots.”</strong> Pretty, dead on arrival. Fix: generated or test-guarded docs only — anything else is lesson-0004 nostalgia.</div>
+<div class="callout"><strong>“any everywhere.”</strong> Types that accept everything check nothing. Fix: <code class="inline">any</code> only at system edges with a TODO; strict everywhere else.</div>
+<div class="callout warn"><strong>“TS rewrite week.”</strong> Halting features to convert everything. Fix: JSDoc-first, convert hot files only — types serve shipping, not the reverse.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Write <code class="inline">openapi.json</code> (5 task rooms + 2 auth rooms) from your Zod schemas; serve via Swagger UI at <code class="inline">/docs</code>; paste a screenshot-less proof (<code class="inline">curl /docs</code> 200 + paths count).</li>
+<li>Add the docs-coverage test; break it (rename a path); paste red; restore.</li>
+<li>Type <code class="inline">listTasks</code> via JSDoc; call it wrong once; paste the tsc error verbatim.</li>
+</ol>
+<p><em>Done means:</em> served docs + red-green docs test + one tsc error quoted. Module 7 checkpoint (0035) is next — gate to deploy.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="generated or test-guarded — drift becomes red, not silent.">
+<p>1. Docs stay true how?</p>
+<button data-key="a">Screenshots each release</button>
+<button data-key="b">Generated or test-guarded</button>
+<button data-key="c">Memory plus good intent</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="boundaries carry shapes; inference covers the middle for free.">
+<p>2. Annotate where first?</p>
+<button data-key="a">Every line exhaustively</button>
+<button data-key="b">Nowhere, types slow shipping</button>
+<button data-key="c">Boundaries, data in-out</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="schemas judge runtime, types judge writing, tests prove pushes.">
+<p>3. Triangle members are?</p>
+<button data-key="a">Schemas types tests trio</button>
+<button data-key="b">Logs metrics traces set</button>
+<button data-key="c">Dev stage prod tiers</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="80% safety, 0% migration — the pragmatic backend default.">
+<p>4. JSDoc-first buys what?</p>
+<button data-key="a">Full rewrite week fun</button>
+<button data-key="b">Types sans migration pain</button>
+<button data-key="c">Nothing, skip types all</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Maintainable now: <strong>docs generated-or-guarded, types at boundaries (JSDoc-first), triangle (judge/catch/prove) on every feature</strong>. Next: the Module 7 checkpoint — then shipping (Module 8).</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://swagger.io/specification/">OpenAPI</a> · <a href="https://www.typescriptlang.org/docs/">TypeScript</a> · <a href="https://nodejs.org/en/learn/typescript/run-natively">Node native TS</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0033-http-integration-tests.html">← 0033 Integration</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Module 7 checkpoint (0035) comes next — gate to deploy.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: <code class="inline">/docs</code> serves Swagger UI (200, html); coverage test fails naming the renamed path; tsc error quotes the mismatched property (<code class="inline">Argument of type ... is not assignable</code>).</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “docs after launch” — correct: docs ship with the room or the room isn't done.</p>
+</details>
+
+<footer><strong>Lesson 0034</strong> · Module 7 · Docs + types · Sources: <a href="https://swagger.io/specification/">OpenAPI</a>, <a href="https://www.typescriptlang.org/docs/">TS</a> · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0032 — Tests That Catch: Services First</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Unit tests with the Node test runner: pyramid law, arrange-act-assert, service suites, deepEqual data, red-first calibration.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0032-unit-tests-services.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0032 — Tests That Catch: Services First">
+<meta property="og:description" content="Unit tests with the Node test runner: pyramid law, arrange-act-assert, service suites, deepEqual data, red-first calibration.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0032-unit-tests-services.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0032 — Tests That Catch: Services First">
+<meta name="twitter:description" content="Unit tests with the Node test runner: pyramid law, arrange-act-assert, service suites, deepEqual data, red-first calibration.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0032 — Tests That Catch: Services First", "description": "Unit tests with the Node test runner: pyramid law, arrange-act-assert, service suites, deepEqual data, red-first calibration.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0031-module-6-checkpoint.html">← 0031</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0032</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 7 · TESTING + MAINTAINABILITY · LESSON 1</p>
+<h1>Tests that <span class="u-stroke">catch</span></h1>
+<p class="subtitle">One sitting, one win: your service logic is proven by tests that run in milliseconds — no server, no database.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Module 6 gate</span><span>Objectives: runner · unit · services</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Every refactor so far was verified by hand-knocking endpoints — slow, forgetful, unrepeatable. The first time you rename a service function, silence replaces proof. Tests are proof that runs itself: structure (chart 57) finally pays off, because services take data in and return data out — testable with zero HTTP.</div>
+
+<h2>1 · The mental model: pyramid, not ice cream</h2>
+<div class="mermaid">flowchart TD
+  U4["UNIT (many, ms)<br/>services: data in → data out"]
+  U4 --> I4["INTEGRATION (some, sec)<br/>HTTP knocks, real rooms"]
+  I4 --> E8["E2E (few, min)<br/>browser + deployed (Module 8)"]
+</div>
+<p class="diagram-cap"><strong>Chart 102 — Pyramid.</strong> Wide base of fast unit tests, thin tip of slow journeys. Inverted (all E2E) means every run costs minutes and flakes constantly.</p>
+<details><summary><strong>Source + speed law (click)</strong></summary>
+<p>Law: a test you won't run is decoration — unit suites must finish in seconds or developers stop running them. Services (pure logic, chart 57) are the base because they need no server, no DB, no network. Source: <a href="https://nodejs.org/api/test.html">Node test runner</a> (built-in, zero deps).</p>
+<pre>unit (services) → integration (HTTP) → e2e (browser, later)</pre>
+</details>
+
+<h2>2 · Anatomy of one test</h2>
+<div class="mermaid">flowchart LR
+  ARR["arrange<br/>build input data"] --> ACT["act<br/>call the function"]
+  ACT --> ASS["assert<br/>deep-equal expected"]
+</div>
+<p class="diagram-cap"><strong>Chart 103 — Arrange/act/assert.</strong> Three lines, always in this order. If setup sprawls, the function (not the test) needs slimming.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>import { test } from "node:test"; import assert from "node:assert/strict";</pre>
+</details>
+
+<h2>3 · What services deserve tests</h2>
+<div class="mermaid">flowchart TD
+  L5["listTasks: filter/sort/page<br/>5 cases minimum"]
+  V5["validation outcomes<br/>judged() null paths"]
+  O5["ownership clause<br/>caller id pinned"]
+  L5 --> SUITE["suite: services.test.mjs<br/>node --test"]
+</div>
+<p class="diagram-cap"><strong>Chart 104 — Suite map.</strong> Logic with branches gets cases per branch; HTTP and DB stay out (that's 0033's layer).</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>node --test services/ → green in milliseconds</pre>
+</details>
+
+<h2>4 · Live demo: suite in 20 lines (10 min)</h2>
+<p>Create <code class="inline">services/tasks.service.test.mjs</code> — imports the real service, no server booted:</p>
+<pre>// file: services/tasks.service.test.mjs
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { listTasks } from "./tasks.service.mjs";
+
+const rows = [
+  { id: "a", title: "Zebra", done: false, createdAt: 3 },
+  { id: "b", title: "Apple", done: true, createdAt: 2 },
+  { id: "c", title: "Mango", done: false, createdAt: 1 },
+];
+test("filters by done", () =&gt; {
+  const { data, total } = listTasks(rows, { done: "false", page: 1, limit: 10 });
+  assert.equal(total, 2);
+  assert.deepEqual(data.map((t) =&gt; t.id), ["a", "c"]);
+});
+test("sorts by title desc + pages", () =&gt; {
+  const { data, total } = listTasks(rows, { sort: "title", order: "desc", page: 1, limit: 2 });
+  assert.equal(total, 3);
+  assert.deepEqual(data.map((t) =&gt; t.title), ["Zebra", "Mango"]);
+});
+test("search narrows, miss empties", () =&gt; {
+  assert.equal(listTasks(rows, { q: "app", page: 1, limit: 10 }).total, 1);
+  assert.deepEqual(listTasks(rows, { q: "zzz", page: 1, limit: 10 }).data, []);
+});</pre>
+<pre>node --test services/
+<span class="c"># expected: pass 3, fail 0 — milliseconds. Break listTasks on purpose, re-run: red names the branch.</span></pre>
+<p>Why it works: <code class="inline">node:test</code> ships with Node (no install, runs <code class="inline">*.test.mjs</code>); <code class="inline">assert/strict</code> deep-compares (references lie, values don't). Services take arrays, so tests hand-craft rows — the payoff of chart 57's split, finally collected.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Base of the pyramid poured: every future service change runs this suite first (seconds, always). 0033 knocks HTTP for real (integration layer); the pyramid stays green-expandable — new branch, new case, same file.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Testing through HTTP only.”</strong> Every assertion boots server + DB — suite takes minutes, nobody runs it. Fix: logic in services, services tested directly; HTTP tests assert wiring, not math.</div>
+<div class="callout"><strong>“assert.equal on objects.”</strong> Passes on same reference, fails on equal values — both lies. Fix: <code class="inline">deepEqual</code> for data, <code class="inline">equal</code> for scalars. Know which you mean.</div>
+<div class="callout warn"><strong>“No failing-first run.”</strong> Suite written after code, never seen red — it may assert nothing (empty test passes!). Fix: break the function once, watch red, then fix. Red-green isn't ritual, it's calibration.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Write the suite above; run green; paste output.</li>
+<li>Break <code class="inline">listTasks</code> (sort asc/desc flipped); paste the red naming the branch; restore.</li>
+<li>Add two cases: page-2 window + limit-clamp behavior; paste green again.</li>
+</ol>
+<p><em>Done means:</em> green paste + red paste + expanded green. Lesson 0033 (HTTP integration tests) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="fast, many, always-run — the base everything else stands on.">
+<p>1. Unit tests are?</p>
+<button data-key="a">Slow, few, nightly only</button>
+<button data-key="b">Fast, many, always run</button>
+<button data-key="c">Manual, visual, browser-led</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="data in, data out, no server — pure logic tests purely.">
+<p>2. Services test well why?</p>
+<button data-key="a">They need live database</button>
+<button data-key="b">They boot Express server</button>
+<button data-key="c">No HTTP or DB needed</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="references lie — compare values with deepEqual.">
+<p>3. Compare objects with?</p>
+<button data-key="a">deepEqual values, not refs</button>
+<button data-key="b">Equal refs, ignore values</button>
+<button data-key="c">JSON length alone suffices</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="unseen red may mean asserting nothing — calibration requires failure.">
+<p>4. Why break it once?</p>
+<button data-key="a">Punish code for failing</button>
+<button data-key="b">Prove red names branch</button>
+<button data-key="c">Slow the suite bit</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Proof runs itself now: <strong>pyramid (many fast units), arrange/act/assert, services directly, deepEqual data, red-before-green calibration</strong>. Next: integration — knocking HTTP for real, with auth matrix and test DB.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://nodejs.org/api/test.html">Node test runner</a> · <a href="https://nodejs.org/api/assert.html">assert/strict</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0031-module-6-checkpoint.html">← 0031 Checkpoint</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0033 (HTTP integration + auth matrix) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: green shows <code class="inline">pass 3</code>; flipped sort fails the desc test naming titles order; added cases cover <code class="inline">page:2</code> window + over-limit clamp (service or schema behavior — assert actual).</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “100% coverage goal” — correct: cover branches that matter (chart 104), not lines for vanity.</p>
+</details>
+
+<footer><strong>Lesson 0032</strong> · Module 7 · Unit tests · Sources: <a href="https://nodejs.org/api/test.html">test runner</a> · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

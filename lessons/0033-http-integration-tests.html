@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0033 — Knock for Real: HTTP Integration Tests</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="HTTP integration tests with supertest: port-free knocks, test database isolation, and the four-knock auth matrix per room.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0033-http-integration-tests.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0033 — Knock for Real: HTTP Integration Tests">
+<meta property="og:description" content="HTTP integration tests with supertest: port-free knocks, test database isolation, and the four-knock auth matrix per room.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0033-http-integration-tests.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0033 — Knock for Real: HTTP Integration Tests">
+<meta name="twitter:description" content="HTTP integration tests with supertest: port-free knocks, test database isolation, and the four-knock auth matrix per room.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0033 — Knock for Real: HTTP Integration Tests", "description": "HTTP integration tests with supertest: port-free knocks, test database isolation, and the four-knock auth matrix per room.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0032-unit-tests-services.html">← 0032</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0033</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 7 · TESTING + MAINTAINABILITY · LESSON 2</p>
+<h1>Knock <span class="u-stroke">for real</span></h1>
+<p class="subtitle">One sitting, one win: your API proves itself over HTTP — including the full auth allow/deny matrix.</p>
+<div class="meta">
+<span>⏱ 35–45 min</span><span>Prerequisites: Lesson 0032 (units green)</span><span>Objectives: supertest · matrix · test DB</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Units prove logic; nothing proves the <em>wiring</em> — wrong mount path, missing parser, guard misordered, ownership unscoped. Those are integration bugs, and hand-knocking forgets half the matrix after every change. Today knocks become code: same statuses, asserted automatically.</div>
+
+<h2>1 · The mental model: robot hand, separate table</h2>
+<div class="mermaid">flowchart LR
+  T4["test file<br/>supertest agent"] --> APP3["app (no listen!)<br/>in-process knocks"]
+  APP3 --> TDB["test database<br/>migrated fresh, seeded"]
+  TDB --> W10["wipe per test<br/>isolation, always"]
+</div>
+<p class="diagram-cap"><strong>Chart 105 — Robot hand.</strong> Supertest drives your Express app <em>without a port</em> (no listen, no EADDRINUSE, parallel-safe); a dedicated test database keeps dev data sacred.</p>
+<details><summary><strong>Source + isolation law (click)</strong></summary>
+<p>Law: tests never touch dev data — <code class="inline">DATABASE_URL</code> points at <code class="inline">taskflow_test</code>, migrated + seeded in setup, wiped between tests (truncate or transaction rollback). Order-independent tests or nothing. Source: <a href="https://github.com/ladjs/supertest">supertest docs</a>.</p>
+<pre>agent(app) → no ports · test DB → wipe per test</pre>
+</details>
+
+<h2>2 · The auth matrix (the money chart)</h2>
+<div class="mermaid">flowchart TD
+  M7["knock × identity"] --> A8["stranger → 401"]
+  M7 --> B8["owner → 200/201"]
+  M7 --> C8["other user → 404"]
+  M7 --> D8["bad shape → 400"]
+</div>
+<p class="diagram-cap"><strong>Chart 106 — Four knocks per room.</strong> Every private room earns all four cases: Modules 6's denials, automated. This matrix is the course's security proof.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>401 stranger · 200/201 owner · 404 other · 400 junk — per private room</pre>
+</details>
+
+<h2>3 · Test flow per case</h2>
+<div class="mermaid">sequenceDiagram
+  participant T as test
+  participant A as agent(app)
+  participant D as test DB
+  T->>D: seed two users + tasks
+  T->>A: login as A → cookie jar
+  T->>A: GET B's task + jar
+  A->>T: 404 (assert!)
+  T->>D: wipe
+</div>
+<p class="diagram-cap"><strong>Chart 107 — Seed, knock, assert, wipe.</strong> Cookies ride a jar (agent persists them); every case starts from known seed, ends clean.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>seed → jar login → knock → assert status+shape → wipe</pre>
+</details>
+
+<h2>4 · Live demo: matrix coded (12 min)</h2>
+<pre>npm install --save-dev supertest
+<span class="c"># app must export without listening: move app.listen into server.mjs (imports app, listens).
+# Tests import app; prod imports server. Wiring split, logic untouched.</span></pre>
+<pre>// file: routes/tasks.routes.test.mjs
+import { test, before, afterEach } from "node:test";
+import assert from "node:assert/strict";
+import request from "supertest";
+import { app } from "../app.mjs";
+import { query } from "../db.mjs";
+
+before(async () =&gt; { /* migrate test DB + seed users A/B + tasks (see key) */ });
+afterEach(async () =&gt; { /* truncate tasks/sessions, re-seed minimal */ });
+
+async function loginAs(email) {
+  const agent = request.agent(app);
+  await agent.post("/auth/login").send({ email, password: "correct-horse-123" }).expect(200);
+  return agent;
+}
+test("matrix: owner's task", async () =&gt; {
+  const a = await loginAs("a@example.com");
+  const created = await a.post("/tasks").send({ projectId: "pA", title: "Hi" }).expect(201);
+  await a.get(`/tasks/${created.body.id}`).expect(200);
+  const b = await loginAs("b@example.com");
+  await b.get(`/tasks/${created.body.id}`).expect(404); // other's → hidden
+  await request(app).get(`/tasks/${created.body.id}`).expect(401); // stranger → who?
+  await a.post("/tasks").send({ title: 42 }).expect(400); // junk → judged
+});</pre>
+<pre>DATABASE_URL=postgresql://postgres:devpw@localhost:5432/taskflow_test node --test routes/
+<span class="c"># expected: pass — four statuses, one test, seconds. Matrix: automated.</span></pre>
+<p>Why it works: <code class="inline">.expect(status)</code> asserts inline (failure names expected-vs-got); agent jars persist cookies across knocks (login once per identity); exporting app sans listen keeps tests port-free.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Security proof, runnable: the matrix runs on every change (CI in Module 8). 0034 documents these rooms (OpenAPI) and types them (TS); the suite is the net under all future refactors — including Postgres upgrades and Prisma bumps.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Tests hit dev DB.”</strong> Forgot the dial — suite wipes real tasks. Fix: test files assert the DB name contains <code class="inline">test</code> before truncating (guard clause, non-negotiable).</div>
+<div class="callout"><strong>“Shared seed, order matters.”</strong> Test B passes alone, fails after A (leftover rows). Fix: wipe + minimal re-seed per test — isolation over speed, always.</div>
+<div class="callout warn"><strong>“Only happy paths.”</strong> 200s asserted, denials assumed — the matrix's whole value is the 401/404/400 column. Fix: chart 106 per room, no exceptions; a room without denial tests is an untested room.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Split listen from app; install supertest; point at test DB; write the matrix test above; paste green.</li>
+<li>Add PUT-matrix (owner 200, other 404, stranger 401, empty-body 400); paste green.</li>
+<li>Break ownership once (drop the WHERE clause); paste the red naming the leak; restore.</li>
+</ol>
+<p><em>Done means:</em> two green pastes + one red-leak paste. Lesson 0034 (docs + types) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="in-process, port-free, parallel-safe — wiring proven without network.">
+<p>1. Supertest knocks how?</p>
+<button data-key="a">Real ports with listen</button>
+<button data-key="b">In-process, sans ports</button>
+<button data-key="c">Via browser automation</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="dev data is sacred — dedicated DB, wiped per test, name-guarded.">
+<p>2. Tests use which DB?</p>
+<button data-key="a">Production database live</button>
+<button data-key="b">Dev database, careful mode</button>
+<button data-key="c">Separate test DB wiped</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="401/404/400 per room is the automated security proof.">
+<p>3. Matrix proves what?</p>
+<button data-key="a">Denials automated per room</button>
+<button data-key="b">Speed of JSON output</button>
+<button data-key="c">CSS renders correctly now</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="leftover rows make order matter — isolation first, speed second.">
+<p>4. Wipe per test why?</p>
+<button data-key="a">Save disk space daily</button>
+<button data-key="b">Order-independent results kept</button>
+<button data-key="c">Please the linter gods</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Wiring proven: <strong>supertest without ports, test DB with name-guard, four-knock matrix per room, seed-knock-assert-wipe per case</strong>. Next: docs that stay true (OpenAPI) + types that catch (TypeScript).</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://github.com/ladjs/supertest">supertest</a> · <a href="https://nodejs.org/api/test.html">node:test hooks</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0032-unit-tests-services.html">← 0032 Units</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0034 (OpenAPI + TypeScript) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: listen-split = <code class="inline">server.mjs: import {app}; app.listen(...)</code>, app.mjs exports app only. PUT-matrix mirrors POST's four. Ownership break must fail on the other's-404 expecting 200 (leak named by expected-vs-got).</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “e2e instead” — correct: pyramid order (0032); HTTP layer proves wiring, not journeys.</p>
+</details>
+
+<footer><strong>Lesson 0033</strong> · Module 7 · Integration tests · Sources: <a href="https://github.com/ladjs/supertest">supertest</a> · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>
