@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0003 — Where Does fetch Send It? URLs, localhost, Ports</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="URLs, localhost and ports explained for backend beginners: read any URL like an address, fix ECONNREFUSED, dev vs production servers.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0003-urls-localhost-and-ports.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0003-urls-localhost-and-ports.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0003 — Where Does fetch Send It? URLs, localhost, Ports">
+<meta property="og:description" content="URLs, localhost and ports explained for backend beginners: read any URL like an address, fix ECONNREFUSED, dev vs production servers.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0003 — Where Does fetch Send It? URLs, localhost, Ports">
+<meta name="twitter:description" content="URLs, localhost and ports explained for backend beginners: read any URL like an address, fix ECONNREFUSED, dev vs production servers.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0003 — Where Does fetch Send It? URLs, localhost, Ports", "description": "URLs, localhost and ports explained for backend beginners: read any URL like an address, fix ECONNREFUSED, dev vs production servers.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0002-http-request-and-response.html">← 0002</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0003</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 1 · HOW THE WEB WORKS · LESSON 2</p>
+<h1>Where does <span class="u-stroke">your request</span> actually go?</h1>
+<p class="subtitle">One sitting, one win: you read any URL like an address and you know exactly what localhost and a port mean.</p>
+<div class="meta">
+<span>⏱ 25–35 min</span><span>Prerequisites: Lesson 0002 (request vs response)</span><span>Objectives: URL parts · localhost · ports · dev vs prod</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Your code says <code class="inline">fetch("/api/tasks")</code> and it works on your laptop — then a friend opens it on their phone and everything breaks. Or you see “localhost refused to connect” and have no idea which half is wrong. Both mysteries are addressing problems, and after today you solve them in seconds.</div>
+
+<h2>1 · The mental model: a postal address</h2>
+<p>A URL is a postal address with four levels, biggest to smallest:</p>
+<div class="mermaid">flowchart LR
+  U["URL<br/>full address"] --> H["HOST<br/>which building?"]
+  H --> P["PORT<br/>which door?"]
+  P --> R["PATH + QUERY<br/>which room, which note?"]
+  R --> S["Server handler<br/>delivers the reply"]
+</div>
+<p class="diagram-cap"><strong>Diagram D — URL to handler.</strong> Left to right = big to small. Each level answers one question.</p>
+<details><summary><strong>How to read + walkthrough (click)</strong></summary>
+<p><em>How to read:</em> boxes are narrowing-down steps; follow left to right. The request dies at the first level that matches nothing — that tells you who to blame.</p>
+<p><em>Walkthrough for</em> <code class="inline">http://localhost:3000/tasks?done=false</code><em>:</em> ① host <code class="inline">localhost</code> = “this same laptop” ② port <code class="inline">3000</code> = “door 3000 — the API's door” ③ path <code class="inline">/tasks</code> = “the tasks room” + query <code class="inline">done=false</code> = “only unfinished, please”. Wrong host → network error. Wrong port → “refused to connect”. Wrong path → <code class="inline">404</code>.</p>
+<p><em>Takeaway:</em> read every URL failure right-to-left blame order: path (404?) → port (refused?) → host (DNS/network?). Source: <a href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Howto/Web_mechanics/What_is_a_URL">MDN — What is a URL</a>.</p>
+<pre>flowchart LR
+  U["URL - full address"] --> H["HOST - which building?"]
+  H --> P["PORT - which door?"]
+  P --> R["PATH + QUERY - which room, which note?"]
+  R --> S["Server handler - delivers the reply"]</pre>
+</details>
+
+<h2>2 · The five parts of a URL (only five — that's all)</h2>
+<table>
+<tr><th>Part</th><th>Example</th><th>Plain meaning</th></tr>
+<tr><td><strong>Protocol</strong></td><td><code class="inline">http://</code> / <code class="inline">https://</code></td><td>How to speak: plain (dev) vs encrypted (the real web). Prod is always <code class="inline">https</code>.</td></tr>
+<tr><td><strong>Host</strong></td><td><code class="inline">localhost</code> / <code class="inline">api.taskflow.app</code></td><td>Which machine. <code class="inline">localhost</code> = “this laptop I'm on now” — nothing more.</td></tr>
+<tr><td><strong>Port</strong></td><td><code class="inline">:3000</code> / <code class="inline">:5173</code></td><td>Which door on that machine. One door = one server process. Browsers hide <code class="inline">:80</code> and <code class="inline">:443</code> (the defaults).</td></tr>
+<tr><td><strong>Path</strong></td><td><code class="inline">/tasks/7</code></td><td>Which thing on that server. Leading slash = “from the root”.</td></tr>
+<tr><td><strong>Query</strong></td><td><code class="inline">?done=false&amp;page=2</code></td><td>Filters/options: <code class="inline">key=value</code> pairs joined by <code class="inline">&amp;</code>. Never identifies — only filters.</td></tr>
+</table>
+<p>Two facts that prevent real bugs: the <strong>fragment</strong> (<code class="inline">#section</code>) is <em>never sent</em> to the server — the browser keeps it. And <code class="inline">fetch("/api/tasks")</code> with a path-only URL reuses <em>today's</em> host + port — which is why it works in dev and breaks the moment frontend and API live on different machines (Module 8 fixes that with proxy/CORS config).</p>
+
+<h2>3 · localhost and ports, precisely</h2>
+<div class="callout"><strong>localhost</strong> is a nickname for “this machine” (address <code class="inline">127.0.0.1</code>). Your laptop's localhost is YOUR laptop; your friend's phone has its OWN localhost. So “open localhost:3000 on your phone” can never work — the API lives on your laptop's door, not theirs.</div>
+<div class="callout"><strong>Port</strong> is a number 1–65535 naming one listening server. Conventions you'll meet weekly: <code class="inline">3000</code> API (Node), <code class="inline">5173</code> Vite dev frontend, <code class="inline">5432</code> PostgreSQL, <code class="inline">80/443</code> real websites. Two servers can't share one door — the second crashes with <code class="inline">EADDRINUSE</code> (Module 3 makes you trigger this on purpose).</div>
+<div class="callout warn"><strong>Dev vs production server.</strong> Dev = your laptop, sloppy and verbose (auto-reload, stack traces, <code class="inline">http</code>). Production = a rented machine open to the internet (<code class="inline">https</code>, secrets from env vars, logs instead of console peeking). Same code, different discipline — Module 8 does the move.</div>
+
+<h2>4 · Live demo: dissect URLs + meet “refused to connect” (5 min)</h2>
+<p><strong>A — dissect any URL with zero dependencies.</strong> Create <code class="inline">url-demo.mjs</code> — the global <code class="inline">URL</code> class does the parsing:</p>
+<pre>// file: url-demo.mjs
+const u = new URL("http://localhost:3000/tasks/7?done=false#top");
+console.log("protocol:", u.protocol);
+console.log("host:", u.hostname);
+console.log("port:", u.port);
+console.log("path:", u.pathname);
+console.log("query:", u.search);
+console.log("hash:", u.hash, "(stays in browser — never sent)");</pre>
+<pre>node url-demo.mjs
+<span class="c"># expected:
+# protocol: http: / host: localhost / port: 3000
+# path: /tasks/7 / query: ?done=false / hash: #top (stays in browser — never sent)</span></pre>
+<p><strong>B — see the most common backend error on demand.</strong> Nothing listens on port 9999, so this fails fast — read the failure, it's your future debugger:</p>
+<pre>// file: refused-demo.mjs
+try {
+  await fetch("http://localhost:9999/health");
+} catch (err) {
+  console.log("name:", err.constructor.name);
+  console.log("cause:", err.cause?.code ?? "(see message)");
+  console.log("meaning: no server behind door 9999 — start it or fix the port");
+}</pre>
+<pre>node refused-demo.mjs
+<span class="c"># expected: cause ECONNREFUSED — the signature of “wrong port / server not started”</span></pre>
+<p>Why it works: demo A proves a URL is just structured text you can split. Demo B proves “refused” always means host-reached-but-nobody-behind-that-door — never a code bug in your handler.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>From Module 3 on, your world is two doors: frontend on <code class="inline">localhost:5173</code>, API on <code class="inline">localhost:3000</code>, Postgres behind <code class="inline">localhost:5432</code> (no HTTP — raw database protocol). Every “it doesn't connect” moment for the rest of the course is answered by §1's blame order: path → port → host.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“It works on my laptop but not their phone.”</strong> You hardcoded <code class="inline">localhost</code>. Fix: phone needs your laptop's LAN address (e.g. <code class="inline">http://192.168.1.20:3000</code>) or a deployed URL — localhost never leaves its own machine.</div>
+<div class="callout"><strong>“Port in use” crash.</strong> An old server still holds the door (<code class="inline">EADDRINUSE</code>). Fix: kill the old process, don't just open a new terminal and retry.</div>
+<div class="callout warn"><strong>“Query identifies the item.”</strong> <code class="inline">/tasks?id=7</code> instead of <code class="inline">/tasks/7</code>. Works by accident, breaks caching and REST conventions. Fix: path identifies, query filters — no exceptions in this course.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Run demo A with these three URLs: <code class="inline">https://api.taskflow.app:443/projects?page=2</code>, <code class="inline">http://localhost:5173/</code>, <code class="inline">http://localhost:3000/tasks/7?done=false#top</code>. Write the five parts of each.</li>
+<li>For each, predict: which door (port) answers, and what breaks if that door is closed (exact error family).</li>
+<li>Run demo B, then change the host to <code class="inline">http://no-such-host-xyz:3000/</code> and compare the two failures in one sentence each.</li>
+</ol>
+<p><em>Done means:</em> three dissected URLs + two failure sentences showing you can tell “wrong door” apart from “wrong building”.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="c" data-why="localhost always means the machine making the call — yours, theirs, never shared.">
+<p>1. What does localhost designate?</p>
+<button data-key="a">The deployed live server</button>
+<button data-key="b">The shared team database</button>
+<button data-key="c">The current local machine</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="a port selects which server process on that machine receives the request.">
+<p>2. What does the port select?</p>
+<button data-key="a">Which server gets request</button>
+<button data-key="b">Which table holds the rows</button>
+<button data-key="c">Which user owns the data</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="refused means reached the machine but no server behind that door.">
+<p>3. ECONNREFUSED on port 9999 means?</p>
+<button data-key="a">Your handler code has bugs</button>
+<button data-key="b">No server behind that door</button>
+<button data-key="c">Your JSON body was invalid</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="the fragment never leaves the browser — servers never see it.">
+<p>4. Which URL part stays unsent?</p>
+<button data-key="a">Fragment after hash mark</button>
+<button data-key="b">Path naming the resource</button>
+<button data-key="c">Query filtering the list</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">You now read addresses: <strong>protocol → host (which machine) → port (which door) → path + query (which room, which filter)</strong>. Blame order for failures: path → port → host. Next: JSON + what an API promises — the contract language of every TaskFlow endpoint.</div>
+
+<div class="callout">
+<strong>Primary source:</strong> <a href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Howto/Web_mechanics/What_is_a_URL">MDN — What is a URL</a> (10 min, with diagrams).
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0002-http-request-and-response.html">← 0002 Request vs response</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0004 (JSON + API contracts) comes next — the glossary holds today's terms meanwhile.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: URL1 → https / api.taskflow.app / 443 (hidden default, shown here) / /projects / ?page=2 — door 443, closed = TLS/refused. URL2 → http / localhost / 5173 / / — Vite door, closed = refused. URL3 → http / localhost / 3000 / /tasks/7 / ?done=false, #top unsent. Demo B vs bad host: refused = “building reached, door shut” (ECONNREFUSED); bad host = DNS failure (ENOTFOUND/EAI_AGAIN) — “no such building”.</p>
+<p>Quiz: 1c, 2a, 3b, 4a. Watch for: “localhost is shared on wifi” — kill it with the phone example.</p>
+</details>
+
+<footer><strong>Lesson 0003</strong> · Module 1 · URLs, localhost, ports · Sources: <a href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Howto/Web_mechanics/What_is_a_URL">MDN URL</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

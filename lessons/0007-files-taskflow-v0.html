@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0007 — Files: Your Program Learns to Remember</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="File persistence with node:fs promises — the read-modify-write cycle behind CLI TaskFlow v0 that remembers tasks in tasks.json.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0007-files-taskflow-v0.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0007-files-taskflow-v0.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0007 — Files: Your Program Learns to Remember">
+<meta property="og:description" content="File persistence with node:fs promises — the read-modify-write cycle behind CLI TaskFlow v0 that remembers tasks in tasks.json.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0007 — Files: Your Program Learns to Remember">
+<meta name="twitter:description" content="File persistence with node:fs promises — the read-modify-write cycle behind CLI TaskFlow v0 that remembers tasks in tasks.json.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0007 — Files: Your Program Learns to Remember", "description": "File persistence with node:fs promises — the read-modify-write cycle behind CLI TaskFlow v0 that remembers tasks in tasks.json.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0006-run-js-outside-the-browser.html">← 0006</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0007</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 2 · NODE FUNDAMENTALS · LESSON 2</p>
+<h1>Files: memory <span class="u-stroke">that survives</span></h1>
+<p class="subtitle">One sitting, one win: your CLI adds tasks that are still there tomorrow — TaskFlow v0 is born.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Lesson 0006 (argv)</span><span>Objectives: fs read/write · JSON file · CLI routes</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Lesson 0006's tasks lived in variables — close the terminal and they evaporate. A task manager with amnesia is a toy. The fix is one idea: after every change, <em>write the array to a file</em>; on every start, <em>read it back</em>. That loop is 80% of what “persistence” will ever mean.</div>
+
+<h2>1 · The mental model: two memories</h2>
+<div class="mermaid">flowchart LR
+  subgraph RAM["RAM — variables"]
+    direction TB
+    V["fast, easy<br/>dies on exit"]
+  end
+  subgraph DISK["DISK — files"]
+    direction TB
+    F["slow-ish, forever<br/>survives exit"]
+  end
+  V -->|"save: stringify + write"| F
+  F -->|"load: read + parse"| V
+</div>
+<p class="diagram-cap"><strong>Chart 11 — Two memories.</strong> Arrows are the only two crossings you'll ever write: save on change, load on start.</p>
+<details><summary><strong>Source + rule (click)</strong></summary>
+<p>Rule: variables are the workspace, the file is the truth. Every command does load → change → save, no exceptions — skip “save” once and the next run forgets. Source: <a href="https://nodejs.org/en/learn/manipulating-files">Node.js — files</a>.</p>
+<pre>flowchart LR
+  V["RAM variables"] -->|"save"| F["DISK file"]
+  F -->|"load"| V</pre>
+</details>
+
+<h2>2 · The cycle every command follows</h2>
+<div class="mermaid">sequenceDiagram
+  participant C as CLI command
+  participant M as memory array
+  participant J as tasks.json
+  C->>J: read file text
+  J->>C: text (or missing!)
+  C->>M: JSON.parse → array
+  C->>M: push / filter / toggle
+  C->>C: JSON.stringify (pretty, 2 spaces)
+  C->>J: write file back
+</div>
+<p class="diagram-cap"><strong>Chart 12 — Read-modify-write.</strong> Six steps, always in this order; “missing file” is a normal first-run case, not a crash (start with <code class="inline">[]</code>).</p>
+<details><summary><strong>Source + walkthrough (click)</strong></summary>
+<p><code class="inline">node tasks.mjs add "Buy milk"</code>: ① read text ② parse to array ③ push the new task ④ stringify with 2-space indent (so humans can read the file too) ⑤ write back. <code class="inline">list</code> stops after step ② and prints. Async functions + <code class="inline">await</code> keep the order guaranteed.</p>
+<pre>sequenceDiagram
+  participant C as CLI command
+  participant M as memory array
+  participant J as tasks.json
+  ...</pre>
+</details>
+
+<h2>3 · One file, two commands: routing argv</h2>
+<div class="mermaid">flowchart TD
+  A["argv[2] = ?"] -->|"add"| AD["add: load → push → save"]
+  A -->|"list"| L["list: load → print"]
+  A -->|"anything else"| H["help: print usage"]
+  AD --> S["tasks.json updated"]
+</div>
+<p class="diagram-cap"><strong>Chart 13 — Command router.</strong> A tiny diamond routes everything — this is the ancestor of Express routing in Module 4.</p>
+<details><summary><strong>Source + note (click)</strong></summary>
+<p>Note the shape: one entry point, one branch per verb, one fallback. When Module 4 replaces <code class="inline">argv[2]</code> with “method + path”, you'll already know the pattern.</p>
+<pre>flowchart TD
+  A["argv[2] = ?"] -->|"add"| AD["..."]
+  ...</pre>
+</details>
+
+<h2>4 · Live demo: TaskFlow v0 (8 min)</h2>
+<p>Create <code class="inline">tasks.mjs</code> — ES modules import with the <code class="inline">node:</code> prefix (built-in, zero install):</p>
+<pre>// file: tasks.mjs
+import { readFile, writeFile } from "node:fs/promises";
+
+const FILE = new URL("./tasks.json", import.meta.url);
+const [cmd, ...rest] = process.argv.slice(2);
+
+async function load() {
+  try {
+    return JSON.parse(await readFile(FILE, "utf8"));
+  } catch {
+    return []; // first run: no file yet — start empty
+  }
+}
+async function save(tasks) {
+  await writeFile(FILE, JSON.stringify(tasks, null, 2));
+}
+
+if (cmd === "add") {
+  const title = rest.join(" ").trim();
+  if (!title) { console.error("usage: node tasks.mjs add \"Buy milk\""); process.exit(1); }
+  const tasks = await load();
+  const task = { id: Date.now(), title, done: false };
+  await save([...tasks, task]);
+  console.log(JSON.stringify(task));
+} else if (cmd === "list") {
+  const tasks = await load();
+  for (const t of tasks) console.log(`${t.done ? "[x]" : "[ ]"} ${t.id} ${t.title}`);
+} else {
+  console.log('usage: node tasks.mjs add "TITLE" | node tasks.mjs list');
+}</pre>
+<pre>node tasks.mjs list
+<span class="c"># expected (first run): (no output — empty list, file not yet born)</span>
+node tasks.mjs add "Buy milk"
+<span class="c"># expected: {"id":1729...,"title":"Buy milk","done":false}</span>
+node tasks.mjs list
+<span class="c"># expected: [ ] 1729... Buy milk  ← survived! close the terminal, it stays</span>
+cat tasks.json
+<span class="c"># expected: pretty array with your task — open it, it's readable by design</span></pre>
+<p>Why it works: <code class="inline">try/catch</code> turns “missing file” into “empty list” (error handling doing real work); <code class="inline">Date.now()</code> is a good-enough id for v0; <code class="inline">process.exit(1)</code> signals misuse to the terminal (chart 9's exit codes, lesson 0006).</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>v0 persists — crudely. Module 3 serves these same tasks over HTTP; Module 4 validates them with Zod; Module 5 moves them into PostgreSQL (same read-modify-write idea, professional tools). The file never scales to two users at once — that honest limit is exactly why databases exist, and you'll feel it before you're told it.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Wrote tasks but list is empty.”</strong> You forgot <code class="inline">await save(...)</code> — the process exited before writing finished. Fix: every mutation ends with an awaited save; re-check chart 12's order.</div>
+<div class="callout"><strong>“SyntaxError on load.”</strong> You hand-edited tasks.json and broke a comma. Fix: delete the file (it's dev data) or re-validate with <code class="inline">node -e "console.log(JSON.parse(require('fs').readFileSync('./tasks.json','utf8')))"</code> — better: stop hand-editing, use the CLI.</div>
+<div class="callout warn"><strong>“Used fs sync / callbacks soup.”</strong> <code class="inline">readFileSync</code> blocks everything; nested callbacks tangle. Fix: <code class="inline">node:fs/promises</code> + <code class="inline">await</code> — the course default, matching how database drivers work later.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Add a <code class="inline">done</code> command: <code class="inline">node tasks.mjs done ID</code> flips that task to <code class="inline">done:true</code> and saves (follow chart 12 exactly).</li>
+<li>Add clean failures: unknown ID → <code class="inline">console.error("no such task")`</code> + <code class="inline">exit(1)</code>; missing ID → usage line + <code class="inline">exit(1)</code>.</li>
+<li>Run: add two tasks, list, mark one done, list again, then <code class="inline">cat tasks.json</code> — paste the final file content.</li>
+</ol>
+<p><em>Done means:</em> the new branch + two failure paths + a final JSON file showing one done, one open. Send all three and 0008 (npm + modules) unlocks.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="variables are the workspace; the file is the truth reloaded each run.">
+<p>1. Which one is the truth?</p>
+<button data-key="a">RAM variables persist durably</button>
+<button data-key="b">Disk file outlives process</button>
+<button data-key="c">Terminal scrollback history log</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="the cycle is always load, change in memory, then save back.">
+<p>2. Correct mutation order?</p>
+<button data-key="a">Save change then load</button>
+<button data-key="b">Change save then load</button>
+<button data-key="c">Load change then save</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="first run has no file — catch it and start from an empty list.">
+<p>3. Missing file first run?</p>
+<button data-key="a">Catch and start empty</button>
+<button data-key="b">Crash with full stack</button>
+<button data-key="c">Hang and wait forever</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="promises plus await keep order guaranteed without blocking the process.">
+<p>4. Why fs/promises + await?</p>
+<button data-key="a">Blocks process until done</button>
+<button data-key="b">Ordered reads sans blocking</button>
+<button data-key="c">Skips errors silently ever</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Your program remembers now: <strong>load → change → save, file as truth, missing file means empty, argv routes commands</strong>. Next: npm + modules — borrowing the world's code safely (and what package.json actually promises).</div>
+
+<div class="callout">
+<strong>Primary source:</strong> <a href="https://nodejs.org/en/learn/manipulating-files/reading-files-with-nodejs">Node.js — Reading files</a> + <a href="https://nodejs.org/en/learn/manipulating-files/writing-files-with-nodejs">Writing files</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0006-run-js-outside-the-browser.html">← 0006 Outside browser</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0008 (npm, package.json, modules) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: <code class="inline">else if (cmd === "done") { const id = Number(rest[0]); if (!id) { console.error("usage: node tasks.mjs done ID"); process.exit(1); } const tasks = await load(); const t = tasks.find(t =&gt; t.id === id); if (!t) { console.error("no such task"); process.exit(1); } t.done = true; await save(tasks); console.log(JSON.stringify(t)); }</code> Note <code class="inline">Date.now()</code> ids paste long — matching by pasted id is the exercise's hidden lesson (why DBs use short serial ids later).</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “save first so nothing is lost” — correct with a crash-midway story (half-written file beats no-load-first confusion).</p>
+</details>
+
+<footer><strong>Lesson 0007</strong> · Module 2 · Files + TaskFlow v0 · Sources: <a href="https://nodejs.org/en/learn/manipulating-files">Node files</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

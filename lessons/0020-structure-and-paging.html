@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0020 — Structure: Rooms Get Their Own Files</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Express project structure: routes vs services vs storage, Router mounting, filter-sort-page pipeline, honest envelope replies.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0020-structure-and-paging.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0020-structure-and-paging.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0020 — Structure: Rooms Get Their Own Files">
+<meta property="og:description" content="Express project structure: routes vs services vs storage, Router mounting, filter-sort-page pipeline, honest envelope replies.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0020 — Structure: Rooms Get Their Own Files">
+<meta name="twitter:description" content="Express project structure: routes vs services vs storage, Router mounting, filter-sort-page pipeline, honest envelope replies.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0020 — Structure: Rooms Get Their Own Files", "description": "Express project structure: routes vs services vs storage, Router mounting, filter-sort-page pipeline, honest envelope replies.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0019-zod-validation.html">← 0019</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0020</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 4 · EXPRESS + REST · LESSON 4</p>
+<h1>Rooms get <span class="u-stroke">their files</span></h1>
+<p class="subtitle">One sitting, one win: app.mjs shrinks to wiring while routes, logic, and storage each own a home — plus lists that page and sort.</p>
+<div class="meta">
+<span>⏱ 35–45 min</span><span>Prerequisites: Lesson 0019 (Zod)</span><span>Objectives: split · service · paging</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> <code class="inline">app.mjs</code> is 200 lines of rooms, schemas, arrays, and helpers in one pile — add users next module and it becomes unfindable soup. Files aren't organization theater: each split draws a line saying “this changes for different reasons than that”. Today: three homes, one rule each.</div>
+
+<h2>1 · The mental model: three jobs, three homes</h2>
+<div class="mermaid">flowchart LR
+  K4["knock"] --> RT["routes/<br/>HTTP ONLY: paths, status"]
+  RT --> CT["services/<br/>LOGIC ONLY: filter, page, sort"]
+  CT --> DB4["db.mjs<br/>BYTES ONLY: load, save"]
+  DB4 --> F4["tasks.json"]
+</div>
+<p class="diagram-cap"><strong>Chart 56 — Three jobs.</strong> Routes speak HTTP, services think, storage touches bytes. A change in one never edits another.</p>
+<details><summary><strong>Source + the reason test (click)</strong></summary>
+<p>Test per home: routes change when URLs/statuses change; services change when rules change (new filter?); storage changes when the engine changes (file → Postgres, Module 5 — services won't notice). If one edit touches two homes, the line was drawn wrong.</p>
+<pre>flowchart LR
+  K4["knock"] --> RT["routes"] --> CT["services"] --> DB4["storage"]</pre>
+</details>
+
+<h2>2 · The split, file by file</h2>
+<div class="mermaid">flowchart TD
+  APP["app.mjs<br/>wiring: layers + mount"]
+  APP --> RR["routes/tasks.routes.mjs<br/>rooms: validate + call service"]
+  RR --> SV3["services/tasks.service.mjs<br/>pure logic on arrays"]
+  SV3 --> DD["db.mjs<br/>load/save file"]
+</div>
+<p class="diagram-cap"><strong>Chart 57 — Folder truth.</strong> Arrows point down the import chain; nothing imports upward. <code class="inline">app.mjs</code> knows routes exist; rooms never know the app.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>flowchart TD
+  APP["app.mjs"] --> RR["routes/"] --> SV3["services/"] --> DD["db.mjs"]</pre>
+</details>
+
+<h2>3 · Lists grow up: filter → sort → page</h2>
+<div class="mermaid">flowchart LR
+  ALL["all tasks"] --> FI["filter: done?<br/>keep slice"]
+  FI --> SO["sort: title/created?<br/>order asc/desc"]
+  SO --> PG["page: limit+offset<br/>cut window"]
+  PG --> ENV["envelope<br/>{ data, total, page }"]
+</div>
+<p class="diagram-cap"><strong>Chart 58 — List pipeline.</strong> Always this order: narrow, order, window — then report the window <em>and</em> the total so clients can page honestly.</p>
+<details><summary><strong>Source + page math (click)</strong></summary>
+<p>Math: <code class="inline">page</code> starts at 1, <code class="inline">offset = (page-1)*limit</code>, <code class="inline">totalPages = ceil(total/limit)</code>. Page 0 and negative limits die in the query schema (0019's coerce+jodge, extended) — arithmetic never sees them.</p>
+<pre>flowchart LR
+  ALL["all"] --> FI["filter"] --> SO["sort"] --> PG["page"] --> ENV["envelope"]</pre>
+</details>
+
+<h2>4 · Live demo: the move (12 min)</h2>
+<p>New files first — services hold the pipeline, routes hold HTTP:</p>
+<pre>// file: services/tasks.service.mjs
+export function listTasks(tasks, { done, sort = "created", order = "asc", page = 1, limit = 10 }) {
+  let list = done === undefined ? [...tasks] : tasks.filter((t) =&gt; String(t.done) === done);
+  const dir = order === "desc" ? -1 : 1;
+  list.sort((a, b) =&gt; sort === "title"
+    ? a.title.localeCompare(b.title) * dir
+    : (a.createdAt - b.createdAt) * dir);
+  const total = list.length;
+  const data = list.slice((page - 1) * limit, page * limit);
+  return { data, total, page, limit };
+}</pre>
+<pre>// file: routes/tasks.routes.mjs
+import { Router } from "express";
+import { taskCreate, taskUpdate, taskQuery, judged } from "../schemas.mjs";
+import { listTasks } from "../services/tasks.service.mjs";
+import { load, save } from "../db.mjs";
+import { nanoid } from "nanoid";
+
+export const tasksRouter = Router();
+tasksRouter.get("/", async (req, res) =&gt; {
+  const q = judged(res, taskQuery.safeParse(req.query));
+  if (!q) return;
+  res.json(listTasks(await load(), q));
+});
+// ... POST / :id PUT DELETE as before, with load/save (see answer key)</pre>
+<pre>// file: app.mjs (wiring only now):
+import express from "express";
+import { tasksRouter } from "./routes/tasks.routes.mjs";
+const app = express();
+app.use(logger); app.use(express.json());
+app.get("/health", (req, res) =&gt; res.json({ ok: true }));
+app.use("/tasks", tasksRouter); // ← rooms move in under one roof
+app.use(unknownRoom); app.use(errorLane);
+app.listen(3000, ...);</pre>
+<p>Extend the query photo (schemas.mjs): <code class="inline">sort: z.enum(["title","created"]).optional()</code>, <code class="inline">order: z.enum(["asc","desc"]).optional()</code>, <code class="inline">page: z.coerce.number().int().positive().optional()</code> — then knock:</p>
+<pre>node app.mjs
+node -e "console.log(JSON.stringify(await (await fetch('http://localhost:3000/tasks?sort=title&order=desc&page=1&limit=2')).json(), null, 1))"
+<span class="c"># expected: { data:[...2 tasks, Z→A...], total:N, page:1, limit:2 } — envelope!</span></pre>
+<p>Why it works: <code class="inline">Router</code> is a mini-app — paths inside are relative (<code class="inline">/</code> means <code class="inline">/tasks/</code> once mounted). Services take plain data in, return plain data out — testable without HTTP (Module 7 will).</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>This is the building's final floor plan: Module 5 swaps <code class="inline">db.mjs</code> internals for Postgres (services untouched — the reason-test pays off instantly), Module 6 adds users + auth layers between parser and rooms. The envelope shape is the first thing your future frontend will code against.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Routes import the app.”</strong> Circular glue — router needs <code class="inline">app</code> for no reason. Fix: routers export, app imports. Chart 57 arrows never point up.</div>
+<div class="callout"><strong>“Logic in routes, HTTP in services.”</strong> Service returns <code class="inline">res.json</code> — untestable without a server. Fix: services return data; only routes touch res.</div>
+<div class="callout warn"><strong>“Page 0 / limit 1e9.”</strong> Arithmetic on unvetted query — empty pages, memory floods. Fix: schema bounds (positive, max 100); math trusts the photo.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Perform the split (services + routes + wiring); knock health/list/sorted-paged/POST; paste the envelope output.</li>
+<li>Add <code class="inline">?q=</code> search (title contains, case-insensitive) to schema + service + room; paste a search that hits and one that misses (<code class="inline">data:[]</code> with total).</li>
+<li>Point at one line in each home and state which “reason” would change it (URL? rule? engine?).</li>
+</ol>
+<p><em>Done means:</em> envelope paste + two search pastes + three reason sentences. Module 4 checkpoint (0021) is next — gate to databases.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="routes speak HTTP, services think, storage touches bytes — reasons differ.">
+<p>1. Services must not?</p>
+<button data-key="a">Import storage helpers</button>
+<button data-key="b">Touch res or req</button>
+<button data-key="c">Sort and page lists</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="narrow, then order, then window — each step feeds the next.">
+<p>2. List pipeline order?</p>
+<button data-key="a">Page sort then filter</button>
+<button data-key="b">Sort page then filter</button>
+<button data-key="c">Filter sort then page</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="clients need the total to render pages honestly.">
+<p>3. Envelope carries total?</p>
+<button data-key="a">Yes, paging needs total</button>
+<button data-key="b">No, data is enough</button>
+<button data-key="c">Yes, plus server secrets</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="imports flow down only — routers export, app assembles.">
+<p>4. Who imports the app?</p>
+<button data-key="a">Every route file must</button>
+<button data-key="b">Nobody imports app ever</button>
+<button data-key="c">Services import app core</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Floors assigned: <strong>routes HTTP-only, services logic-only, storage bytes-only; lists filter→sort→page into envelopes; imports point down</strong>. Next: the Module 4 checkpoint — then data moves to Postgres.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://expressjs.com/en/guide/routing.html">Express — routing</a> · <a href="https://expressjs.com/en/5x/api.html#router">Express 5 — Router</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0019-zod-validation.html">← 0019 Zod</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Module 4 checkpoint (0021) comes next — gate to databases.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: <code class="inline">q: z.string().trim().min(1).max(50).optional()</code>; service: <code class="inline">if (q) { const needle = q.toLowerCase(); list = list.filter((t) =&gt; t.title.toLowerCase().includes(needle)); }</code> before sort. Miss paste must show <code class="inline">{ data: [], total: 0, ... }</code>. Reasons example: trapdoor line → URL reason; sort default → rule reason; FILE path/env → engine reason.</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “services validate” — correct: rooms validate entrances, services assume clean (judge at the door, chart 55).</p>
+</details>
+
+<footer><strong>Lesson 0020</strong> · Module 4 · Structure + paging · Sources: <a href="https://expressjs.com/en/guide/routing.html">routing</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0013 — Routing by Hand: One Door, Many Rooms</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Hand-rolled HTTP routing: match method plus path, split URL from query, filter lists, JSON replies, and a proper 404 trapdoor.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0013-routing-by-hand.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0013-routing-by-hand.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0013 — Routing by Hand: One Door, Many Rooms">
+<meta property="og:description" content="Hand-rolled HTTP routing: match method plus path, split URL from query, filter lists, JSON replies, and a proper 404 trapdoor.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0013 — Routing by Hand: One Door, Many Rooms">
+<meta name="twitter:description" content="Hand-rolled HTTP routing: match method plus path, split URL from query, filter lists, JSON replies, and a proper 404 trapdoor.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0013 — Routing by Hand: One Door, Many Rooms", "description": "Hand-rolled HTTP routing: match method plus path, split URL from query, filter lists, JSON replies, and a proper 404 trapdoor.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0012-first-listening-server.html">← 0012</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0013</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 3 · SERVER FROM SCRATCH · LESSON 2</p>
+<h1>One door, <span class="u-stroke">many rooms</span></h1>
+<p class="subtitle">One sitting, one win: your server answers three different endpoints — with the right status each time.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Lesson 0012 (listen + reply)</span><span>Objectives: route · query · 404 · JSON</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Hello-server answers every knock identically — <code class="inline">GET /health</code> and <code class="inline">DELETE /everything</code> get the same smile. A real API is a building: one door, many rooms, and a guard who says “no such room” with a <code class="inline">404</code>. Today you become the guard, with bare hands.</div>
+
+<h2>1 · The mental model: guard with a list</h2>
+<div class="mermaid">flowchart TD
+  K["knock arrives<br/>method + url"] --> G{"guard checks<br/>method + path vs list"}
+  G -->|"GET /health"| H["reply 200<br/>{ ok: true }"]
+  G -->|"GET /tasks"| T["reply 200<br/>task list (+ filter)"]
+  G -->|"nothing matched"| N["reply 404<br/>{ error: ... }"]
+</div>
+<p class="diagram-cap"><strong>Chart 32 — Guard routing.</strong> One diamond, N rooms, one trapdoor. Order matters: specific rooms before the fall-through.</p>
+<details><summary><strong>Source + the two-field rule (click)</strong></summary>
+<p>Two-field rule: route on <strong>method AND path together</strong> — <code class="inline">GET /tasks</code> and <code class="inline">POST /tasks</code> are different rooms (bodies arrive in 0014). The <code class="inline">404</code> isn't an error in your code, it's a <em>correct answer</em> to a wrong address (chart 4's triage, lesson 0005).</p>
+<pre>flowchart TD
+  K["method + url"] --> G{"match?"} --> H["200"] / T["200"] / N["404"]</pre>
+</details>
+
+<h2>2 · Splitting the URL: path vs query</h2>
+<div class="mermaid">flowchart LR
+  RAW["raw req.url<br/>/tasks?done=false"] --> SPLIT["new URL(raw, base)<br/>the splitter"]
+  SPLIT --> P["pathname: /tasks<br/>WHICH room (route on this)"]
+  SPLIT --> Q["searchParams: done=false<br/>WHICH slice (filter with this)"]
+</div>
+<p class="diagram-cap"><strong>Chart 33 — Split before routing.</strong> Never route on the raw string — <code class="inline">/tasks?done=false</code> !== <code class="inline">/tasks</code> as text, but same room.</p>
+<details><summary><strong>Source + the classic bug (click)</strong></summary>
+<p>Classic bug: <code class="inline">if (req.url === "/tasks")</code> breaks the moment a query appears. The splitter (<code class="inline">new URL(req.url, "http://x")</code> — base is dummy, only path+query used) separates identity from filters, enforcing lesson 0003's rule in code.</p>
+<pre>flowchart LR
+  RAW["req.url"] --> SPLIT["new URL()"] --> P["pathname"] + Q["searchParams"]</pre>
+</details>
+
+<h2>3 · JSON replies: the content-type promise</h2>
+<div class="mermaid">sequenceDiagram
+  participant H as handler
+  participant W as wire bytes
+  participant C as client .json()
+  H->>H: object → JSON.stringify
+  H->>W: writeHead(200, json type) + end(text)
+  W->>C: text arrives
+  C->>C: res.json() → object again
+</div>
+<p class="diagram-cap"><strong>Chart 34 — JSON round trip over HTTP.</strong> Lesson 0004's stringify/parse with a header in the middle: the type label is what lets <code class="inline">res.json()</code> trust the text.</p>
+<details><summary><strong>Source + helper shape (click)</strong></summary>
+<p>You'll write a tiny <code class="inline">send(res, status, object)</code> helper today — stringify + header + end in one call. Express's <code class="inline">res.json()</code> (Module 4) is literally this helper, pre-written. Feel the repetition first; the framework will feel earned.</p>
+<pre>sequenceDiagram
+  participant H as handler
+  participant W as wire
+  participant C as client
+  ...</pre>
+</details>
+
+<h2>4 · Live demo: three rooms (10 min)</h2>
+<p>Create <code class="inline">server.mjs</code> — every lesson-0004 shape, served raw:</p>
+<pre>// file: server.mjs
+import http from "node:http";
+
+const tasks = [
+  { id: "a1", title: "Learn routing", done: true },
+  { id: "b2", title: "Learn bodies", done: false },
+];
+
+function send(res, status, obj) {
+  res.writeHead(status, { "content-type": "application/json" });
+  res.end(JSON.stringify(obj));
+}
+
+const server = http.createServer((req, res) => {
+  const { pathname, searchParams } = new URL(req.url, "http://base");
+  console.log(`${req.method} ${pathname}`);
+  if (req.method === "GET" &amp;&amp; pathname === "/health") {
+    return send(res, 200, { ok: true });
+  }
+  if (req.method === "GET" &amp;&amp; pathname === "/tasks") {
+    const done = searchParams.get("done");
+    const list = done === null ? tasks : tasks.filter((t) =&gt; String(t.done) === done);
+    return send(res, 200, list);
+  }
+  return send(res, 404, { error: `no such room: ${req.method} ${pathname}` });
+});
+
+server.listen(3000, () =&gt; console.log("listening on http://localhost:3000"));</pre>
+<pre>node server.mjs
+node -e "console.log(await (await fetch('http://localhost:3000/health')).json())"
+<span class="c"># expected: { ok: true } — LEFT logs: GET /health</span>
+node -e "console.log(await (await fetch('http://localhost:3000/tasks?done=false')).json())"
+<span class="c"># expected: [{ id: 'b2', ... }] — same room, filtered slice</span>
+node -e "const r = await fetch('http://localhost:3000/nope'); console.log(r.status, await r.json())"
+<span class="c"># expected: 404 { error: 'no such room: GET /nope' } — the guard speaks</span></pre>
+<p>Why it works: <code class="inline">return send(...)</code> both replies <em>and</em> exits the handler — guaranteeing one response exactly (lesson 0012's rule, enforced by construction). Query filtering compares strings because URLs only carry text.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Three rooms today, full building soon: 0014 adds bodies (<code class="inline">POST /tasks</code> reads JSON text), 0015 wires the file behind the rooms (persistence returns). The <code class="inline">send</code> helper and the guard diamond survive all the way into Express — renamed <code class="inline">res.json</code> and “routes”, same bones.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Query broke my route.”</strong> Compared raw <code class="inline">req.url</code> including <code class="inline">?...</code>. Fix: always split first, route on <code class="inline">pathname</code> only — chart 33.</div>
+<div class="callout"><strong>“Two replies / headers already sent.”</strong> Fell through past a <code class="inline">send</code> into another. Fix: <code class="inline">return send(...)</code> every branch — replying is also leaving.</div>
+<div class="callout warn"><strong>“200 for the 404.”</strong> Right body, wrong status — clients branch on numbers, not text. Fix: the guard's trapdoor always <code class="inline">404</code>; reserve <code class="inline">200</code> for rooms that exist.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Add <code class="inline">GET /tasks/:id</code> by hand: split <code class="inline">pathname</code> on <code class="inline">/</code>, match two segments with first <code class="inline">tasks</code> — found → <code class="inline">200</code> + task, else <code class="inline">404</code> + error. Feel the pain; Express removes it in Module 4.</li>
+<li>Add <code class="inline">?limit=N</code> to <code class="inline">GET /tasks</code>: slice the list; non-numeric N → <code class="inline">400</code> + error (your first “bad query” verdict).</li>
+<li>Paste: three knock outputs (item found, item 404, limit bad → 400) + the new code branches.</li>
+</ol>
+<p><em>Done means:</em> id room + limit filter + three correct statuses (200/404/400). Lesson 0014 (bodies: POST reads JSON) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="rooms are identified by verb plus path together — same path, other verb, other room.">
+<p>1. Route matches on what?</p>
+<button data-key="a">Path alone decides all</button>
+<button data-key="b">Method plus path both</button>
+<button data-key="c">Query string only ever</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="raw text includes ?filters — split first, route on pathname.">
+<p>2. Why split URL first?</p>
+<button data-key="a">Base dummy looks nicer</button>
+<button data-key="b">Headers need the query</button>
+<button data-key="c">Queries break raw compare</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="404 is the correct answer to a wrong address, not a bug.">
+<p>3. Unknown room replies?</p>
+<button data-key="a">404 correct no-room reply</button>
+<button data-key="b">200 with empty object</button>
+<button data-key="c">500 with stack trace</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="returning exits the handler — exactly one response guaranteed.">
+<p>4. Why return send(...)?</p>
+<button data-key="a">Speeds up JSON output</button>
+<button data-key="b">Replies then leaves handler</button>
+<button data-key="c">Logs knock to console</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">You're the guard now: <strong>route on method + pathname, split before comparing, filter with query, 404 the unknown, return every reply</strong>. Next: bodies — POST knocks carrying JSON text.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://nodejs.org/api/http.html">Node.js — http</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/API/URL">MDN — URL class</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0012-first-listening-server.html">← 0012 First server</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0014 (request bodies + POST) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: <code class="inline">const parts = pathname.split("/").filter(Boolean); if (req.method === "GET" &amp;&amp; parts[0] === "tasks" &amp;&amp; parts.length === 2) { const t = tasks.find((t) =&gt; t.id === parts[1]); return send(res, t ? 200 : 404, t ?? { error: "unknown task" }); }</code> Limit: <code class="inline">const n = Number(searchParams.get("limit")); if (raw !== null &amp;&amp; !Number.isInteger(n)) return send(res, 400, ...)</code> — order: id-room BEFORE /tasks? No: exact /tasks first, then parts-match, then 404. Three pastes must show 200/404/400.</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “filter in path” (/tasks/false) — correct with chart 33 (identity vs filter).</p>
+</details>
+
+<footer><strong>Lesson 0013</strong> · Module 3 · Routing by hand · Sources: <a href="https://nodejs.org/api/http.html">http</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/API/URL">URL</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

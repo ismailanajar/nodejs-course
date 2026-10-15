@@ -1,0 +1,196 @@
+/* TaskFlow Course — shared stylesheet, mirrored 1:1 from ../portfolio.
+   Same tokens, same fonts, same brutal components.
+   Source of truth for look: C:\Users\Hp\Documents\portfolio\styles.css
+   Lessons reuse these classes; never inline CSS in lessons. */
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap");
+
+:root {
+  --blue: #234df1;
+  --blue-dark: #1a3cc4;
+  --yellow: #facc15;
+  --paper: #fff8e9;
+  --paper2: #fffdf4;
+  --ink: #111113;
+  --muted: #5b5b66;
+  --border: 3px solid #111113;
+  --shadow: 6px 6px 0 #111113;
+  --shadow-sm: 4px 4px 0 #111113;
+  --r: 16px;
+  --max: 880px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; overflow-x: hidden; overflow-x: clip; }
+body {
+  margin: 0; overflow-x: hidden; overflow-x: clip;
+  font-family: "Inter", system-ui, sans-serif;
+  background: var(--paper); color: var(--ink); line-height: 1.6;
+  font-size: 17px;
+}
+h1, h2, h3 {
+  font-family: "Space Grotesk", "Space Grotesk Fallback", system-ui, sans-serif;
+  line-height: 1.1; margin: 0 0 12px;
+}
+/* ---- NAV (portfolio .nav, lesson hook: .topbar) ---- */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(255, 248, 233, 0.92); backdrop-filter: blur(10px);
+}
+.topbar inner {
+  max-width: 1140px; margin: 0 auto; padding: 0 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 64px; font-size: 16px;
+}
+.logo {
+  font-weight: 800; text-decoration: none; color: var(--ink); font-size: 22px;
+  display: flex; align-items: center; gap: 10px; letter-spacing: -0.03em;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+.logo-box {
+  background: var(--blue); color: #fff; border: 3px solid #111; border-radius: 10px;
+  padding: 2px 9px; box-shadow: 3px 3px 0 #111; transform: rotate(-5deg);
+  transition: transform 0.2s ease; font-weight: 800;
+}
+.logo-box b { color: var(--yellow); font-weight: 700; }
+.logo:hover .logo-box { transform: rotate(0deg); }
+.logo-text em { font-style: normal; color: var(--blue); }
+.topbar nav.links, .topbar .links { display: flex; gap: 26px; align-items: center; }
+.topbar a { text-decoration: none; color: var(--ink);
+  font-family: "Space Grotesk", system-ui, sans-serif; font-weight: 500; font-size: 16px; }
+.badge {
+  font-family: "Space Grotesk", system-ui, sans-serif; font-weight: 800; font-size: 14px;
+  background: var(--yellow); border: var(--border); border-radius: 12px;
+  padding: 8px 16px; box-shadow: 3px 3px 0 #111; white-space: nowrap;
+}
+/* ---- layout ---- */
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 20px; }
+main.wrap { padding-bottom: 64px; }
+/* ---- HERO (portfolio .hero) ---- */
+.hero {
+  background: var(--paper); border-bottom: 3px solid #111;
+  padding: 48px 0 40px; position: relative; overflow: hidden;
+  margin: 0 -20px 8px; padding-left: 20px; padding-right: 20px;
+}
+.hero h1 {
+  font-weight: 700; font-size: clamp(38px, 5vw, 60px);
+  letter-spacing: -0.04em; line-height: 1.02; margin: 0 0 18px; color: #0e0e10;
+}
+.hero .subtitle {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: clamp(18px, 2.2vw, 22px); line-height: 1.45;
+  max-width: 640px; color: #161619; font-weight: 500; margin: 0;
+}
+.hero-role {
+  font-family: "Space Grotesk", system-ui, sans-serif; font-weight: 700;
+  letter-spacing: 0.14em; font-size: 13px; color: #111; background: #fff;
+  border: 2px solid #111; border-radius: 999px; display: inline-block;
+  padding: 5px 12px; margin: 0 0 16px; box-shadow: 3px 3px 0 #111;
+}
+/* yellow hand-drawn underline, same SVG as portfolio */
+.u-stroke { position: relative; display: inline-block; white-space: nowrap; z-index: 0; }
+.u-stroke::after {
+  content: ""; position: absolute; left: 0.02em; right: 0.02em; bottom: -0.15em;
+  height: 0.22em; min-height: 7px; z-index: -1;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 40' preserveAspectRatio='none'%3E%3Cpath d='M16 13 C100 9 220 6.5 320 7.5 C352 8 374 10.5 388 14 C397 16.4 400 22 396.5 27 C393.4 31.2 387 32 380 31 C350 27.6 320 27.4 290 28 C200 30 110 33 18 36 C8 36.3 1 31 1 24.6 C1 18.4 7.6 13.4 16 13 Z' fill='%23FACC15' opacity='0.9'/%3E%3C/svg%3E") no-repeat center/100% 100%;
+}
+/* ---- section titles ---- */
+h2 { font-size: clamp(26px, 3.4vw, 34px); letter-spacing: -0.03em; margin: 40px 0 10px; }
+.sec-kicker {
+  display: flex; align-items: center; gap: 12px;
+  font-family: "Space Grotesk", system-ui, sans-serif; font-weight: 700;
+  font-size: 15px; letter-spacing: 0.1em; margin: 40px 0 4px;
+}
+.sec-kicker i { width: 48px; height: 18px; background: var(--yellow);
+  border: 2.5px solid #111; display: block; flex-shrink: 0; }
+/* ---- meta pills (portfolio .stack) ---- */
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 8px; font-size: 13px; }
+.meta span {
+  background: #f1f3ff; border: 2px solid #111; border-radius: 999px;
+  padding: 4px 10px; font-size: 12px; font-weight: 700;
+}
+/* ---- cards (portfolio .brutal-card) ---- */
+.callout {
+  background: #fff; border: var(--border); border-radius: var(--r);
+  box-shadow: var(--shadow); padding: 18px; margin: 18px 0;
+}
+.callout.why { background: #eef2ff; }
+.callout.warn { background: #fef9c3; }
+/* ---- code ---- */
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+pre {
+  background: #111; color: #fff; padding: 16px 18px; border-radius: 14px;
+  overflow: auto; font-size: 14px; line-height: 1.6; border: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+pre .c { color: #c9c9d4; }
+code.inline { background: #fef9c3; border: 2px solid #111; border-radius: 8px;
+  padding: 1px 8px; font-size: 0.85em; font-weight: 700; white-space: nowrap; }
+/* rule: never set Space Grotesk on inline code — its round parens read as "0" */
+/* ---- tables as brutal cards ---- */
+table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 15px;
+  margin: 16px 0; background: #fff; border: var(--border); border-radius: var(--r);
+  overflow: hidden; box-shadow: var(--shadow); }
+th, td { text-align: left; padding: 12px 14px; border-bottom: 2px solid #111; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--ink); background: var(--paper); font-family: "Space Grotesk", system-ui, sans-serif; }
+/* ---- diagrams ---- */
+.mermaid { background: #fff; border: var(--border); border-radius: var(--r);
+  padding: 18px; margin: 16px 0; overflow: auto; box-shadow: var(--shadow); }
+.diagram-cap { font-size: 14px; color: var(--muted); margin: -4px 0 18px; }
+ol.steps { padding-left: 22px; } ol.steps li { margin: 8px 0; }
+details { background: #fff; border: var(--border); border-radius: 14px;
+  box-shadow: var(--shadow-sm); padding: 14px 18px; margin: 12px 0; }
+summary { cursor: pointer; font-weight: 700;
+  font-family: "Space Grotesk", system-ui, sans-serif; }
+/* ---- quiz (brutal buttons) ---- */
+.quiz { background: #fff; border: var(--border); border-radius: var(--r);
+  box-shadow: var(--shadow); padding: 20px; margin: 22px 0; }
+.quiz h3 { margin-top: 0; }
+.q { margin: 16px 0; padding-top: 12px; border-top: 2px dashed #111; }
+.q:first-of-type { border-top: 0; padding-top: 0; }
+.q p { font-weight: 700; margin: 0.2em 0 0.6em;
+  font-family: "Space Grotesk", system-ui, sans-serif; }
+.q button {
+  display: block; width: 100%; text-align: left; margin: 8px 0; padding: 11px 13px;
+  border: 2px solid #111; border-radius: 12px; background: #fff; font-size: 16px;
+  cursor: pointer; font-family: inherit; font-weight: 600;
+  box-shadow: 3px 3px 0 #111; transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.q button:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 #111; }
+.q button.correct { background: var(--yellow); }
+.q button.wrong { background: #ffe4e6; }
+.feedback { font-size: 15px; min-height: 1.6em; color: var(--muted); }
+.feedback.good { color: var(--blue-dark); font-weight: 700; }
+.feedback.bad { color: #be123c; font-weight: 700; }
+/* ---- buttons (portfolio .btn) ---- */
+.next { display: flex; gap: 12px; margin-top: 26px; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+  font-weight: 800; border: var(--border); border-radius: 12px; padding: 12px 20px;
+  box-shadow: var(--shadow-sm); transition: 0.15s; cursor: pointer; font-size: 15px;
+  font-family: "Space Grotesk", system-ui, sans-serif; color: #111;
+}
+.btn:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 #111; }
+.btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #111; }
+.btn.primary { background: var(--yellow); }
+.btn.ghost { background: #fff; }
+a { color: var(--blue-dark); }
+/* ---- footer (portfolio dark footer) ---- */
+footer { background: #111; color: #cfcfda; padding: 28px 20px;
+  border: var(--border); border-radius: var(--r); box-shadow: var(--shadow);
+  font-size: 14px; margin-top: 26px; }
+footer a { color: var(--yellow); }
+footer strong { color: #fff; }
+@media print {
+  .topbar { position: static; }
+  body { background: #fff; }
+  .callout, .quiz, .mermaid, table, pre, footer { box-shadow: none; }
+  pre { background: #f5f5f5 !important; color: #111 !important; }
+  footer { background: #fff !important; color: #111 !important; }
+}
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .hero h1 { font-size: 38px; }
+  .u-stroke { white-space: normal; }
+  .next .btn { width: 100%; justify-content: center; }
+}

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://ismailanajar.github.io/nodejs-course/</loc><lastmod>2026-10-15</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0001-course-map.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0002-http-request-and-response.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0003-urls-localhost-and-ports.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0004-json-and-api-contracts.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0005-module-1-checkpoint.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0006-run-js-outside-the-browser.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0007-files-taskflow-v0.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0008-npm-and-modules.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0009-env-vars-and-errors.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0010-async-and-event-loop.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0011-module-2-checkpoint.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0012-first-listening-server.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0013-routing-by-hand.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0014-request-bodies-and-post.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0015-file-behind-http.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0016-module-3-checkpoint.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0017-express-hello.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0018-middleware-and-errors.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0019-zod-validation.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0020-structure-and-paging.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/lessons/0021-module-4-checkpoint.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://ismailanajar.github.io/nodejs-course/reference/glossary.html</loc><lastmod>2026-10-15</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+</urlset>

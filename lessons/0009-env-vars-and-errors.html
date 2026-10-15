@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0009 — Config Without Hardcoding, Failures With Manners</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Environment variables and friendly CLI errors: config dials with defaults, stdout vs stderr, exit codes, translating corrupt files.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0009-env-vars-and-errors.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0009-env-vars-and-errors.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0009 — Config Without Hardcoding, Failures With Manners">
+<meta property="og:description" content="Environment variables and friendly CLI errors: config dials with defaults, stdout vs stderr, exit codes, translating corrupt files.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0009 — Config Without Hardcoding, Failures With Manners">
+<meta name="twitter:description" content="Environment variables and friendly CLI errors: config dials with defaults, stdout vs stderr, exit codes, translating corrupt files.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0009 — Config Without Hardcoding, Failures With Manners", "description": "Environment variables and friendly CLI errors: config dials with defaults, stdout vs stderr, exit codes, translating corrupt files.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0008-npm-and-modules.html">← 0008</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0009</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 2 · NODE FUNDAMENTALS · LESSON 4</p>
+<h1>Dials outside <span class="u-stroke">the code</span></h1>
+<p class="subtitle">One sitting, one win: your CLI reads config from the environment and fails with sentences, not stack traces.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Lesson 0008 (project shape)</span><span>Objectives: env vars · stderr/exit · friendly errors</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> v0 hardcodes <code class="inline">./tasks.json</code> — want a test file? Edit code. And when the JSON corrupts, Node vomits 20 lines of internals at a user who just wanted to list tasks. Both are the same sin: <em>mixing what changes (config, problems) with what doesn't (logic)</em>.</div>
+
+<h2>1 · The mental model: machine with dials</h2>
+<div class="mermaid">flowchart LR
+  subgraph OUT["OUTSIDE the code"]
+    E["environment dials<br/>TASKS_FILE=./demo.json"]
+  end
+  subgraph IN["INSIDE the code"]
+    P["process.env<br/>reads the dials"]
+    D["?? default<br/>falls back kindly"]
+  end
+  E --> P --> D --> C["logic runs<br/>never knowing the difference"]
+</div>
+<p class="diagram-cap"><strong>Chart 17 — Dials, not edits.</strong> Same file behaves differently per dial; teammates set their own without touching your code.</p>
+<details><summary><strong>Source + rule (click)</strong></summary>
+<p>Rule: <code class="inline">process.env.NAME ?? "sane-default"</code> — always a fallback, so the program runs with zero setup and bends with one word. Secrets (Module 6+) never get defaults and never enter git — dials stay on the machine. Source: <a href="https://nodejs.org/en/learn/command-line/how-to-read-environment-variables-from-nodejs">Node.js — env vars</a>.</p>
+<pre>flowchart LR
+  E["environment dials"] --> P["process.env"] --> D["?? default"] --> C["logic"]</pre>
+</details>
+
+<h2>2 · Programs speak on two channels</h2>
+<div class="mermaid">flowchart LR
+  subgraph OK["happy path"]
+    direction TB
+    O["console.log<br/>DATA channel (stdout)"]
+    Z["exit code 0<br/>verdict: fine"]
+  end
+  subgraph BAD["failure path"]
+    direction TB
+    R["console.error<br/>PROBLEM channel (stderr)"]
+    X["exit code 1<br/>verdict: failed"]
+  end
+</div>
+<p class="diagram-cap"><strong>Chart 18 — Two channels + a verdict.</strong> Data and problems never share a pipe; scripts and servers branch on the number, not the text.</p>
+<details><summary><strong>Source + why it matters (click)</strong></summary>
+<p>Why: <code class="inline">node tasks.mjs list > out.txt</code> captures only stdout — errors still reach your eyes via stderr. And <code class="inline">echo $?</code> (or CI checks) reads the verdict. Mixing them corrupts both: error text inside JSON output breaks every parser downstream.</p>
+<pre>flowchart LR
+  O["console.log → stdout"] 
+  R["console.error → stderr"]
+  ...</pre>
+</details>
+
+<h2>3 · Friendly errors: catch, translate, exit</h2>
+<div class="mermaid">flowchart TD
+  T["try { load + parse }"] -->|"ok"| G["continue normally"]
+  T -->|"file missing"| M["start empty []<br/>(lesson 0007)"]
+  T -->|"JSON corrupt"| F["console.error plain sentence<br/>+ exit(1), no stack"]
+</div>
+<p class="diagram-cap"><strong>Chart 19 — Three outcomes, zero panic.</strong> The user caused none of these; the program translates each into the kindest correct response.</p>
+<details><summary><strong>Source + the translation rule (click)</strong></summary>
+<p>Translation rule: catch at the boundary (where outside-world bytes enter), speak human (“tasks.json is corrupt — fix or delete it”), exit nonzero. Stack traces are for <em>your</em> debugging (keep them in dev with <code class="inline">console.error(err)</code> behind a flag), never for users. Source: <a href="https://nodejs.org/en/learn/errors">Node.js — errors</a>.</p>
+<pre>flowchart TD
+  T["try load+parse"] --> G["ok"] 
+  T --> M["missing → empty"]
+  T --> F["corrupt → sentence + exit 1"]</pre>
+</details>
+
+<h2>4 · Live demo: TaskFlow v0 behaves (8 min)</h2>
+<p>Two upgrades to <code class="inline">db.mjs</code> — a dial for the file, and a translator for corruption:</p>
+<pre>// file: db.mjs (upgraded)
+import { readFile, writeFile } from "node:fs/promises";
+const FILE = new URL(process.env.TASKS_FILE ?? "./tasks.json", import.meta.url);
+export async function load() {
+  let text;
+  try {
+    text = await readFile(FILE, "utf8");
+  } catch {
+    return []; // missing → first run, start empty
+  }
+  try {
+    const data = JSON.parse(text);
+    if (!Array.isArray(data)) throw new Error("not a list");
+    return data;
+  } catch {
+    console.error(`error: ${process.env.TASKS_FILE ?? "./tasks.json"} is corrupt — fix it or delete it to start fresh.`);
+    process.exit(1);
+  }
+}
+export async function save(tasks) {
+  await writeFile(FILE, JSON.stringify(tasks, null, 2));
+}</pre>
+<pre>TASKS_FILE=./demo.json npm run add -- "Test drive"
+<span class="c"># expected: task saved into demo.json — tasks.json untouched. Same code, dial turned.</span>
+TASKS_FILE=./demo.json npm run list
+echo "oops {{{" &gt; demo.json
+TASKS_FILE=./demo.json npm run list; echo "exit=$?"
+<span class="c"># expected: error: ./demo.json is corrupt — fix it or delete it to start fresh. / exit=1
+# (Windows PowerShell: $env:TASKS_FILE="./demo.json"; node tasks.mjs list)</span></pre>
+<p>Why it works: <code class="inline">??</code> keeps zero-setup behavior; the two nested <code class="inline">try</code> blocks separate “absent” (kind) from “broken” (firm); <code class="inline">exit(1)</code> tells the terminal the truth.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>This dial is the ancestor of all configuration: Module 5's <code class="inline">DATABASE_URL</code>, Module 8's production secrets — same <code class="inline">process.env.X ?? default</code> shape, higher stakes (no defaults for passwords, <code class="inline">.gitignore</code>'d <code class="inline">.env</code> files via dotenv). The two-channel habit is what makes future servers log cleanly instead of spraying.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Env var ignored.”</strong> You wrote <code class="inline">TASKS_FILE = ./x.json</code> with spaces, or set it <em>after</em> the command. Fix: <code class="inline">NAME=value</code>, no spaces, before the command (PowerShell: <code class="inline">$env:NAME="value"</code> on its own line).</div>
+<div class="callout"><strong>“console.log for errors.”</strong> Error text pollutes piped JSON downstream. Fix: humans' bad news always via <code class="inline">console.error</code> + nonzero exit.</div>
+<div class="callout warn"><strong>“Committed a secret.”</strong> API key pasted into code and pushed. Fix: it's compromised the second it touches git — revoke it, move it to a dial, add the file to <code class="inline">.gitignore</code>. Practice this with harmless paths now so it's reflex later.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Apply the <code class="inline">db.mjs</code> upgrade; verify default behavior unchanged (no dial → tasks.json).</li>
+<li>With a dial set, add a task, corrupt the file by hand (delete a comma), run <code class="inline">list</code>, paste the exact error + exit code.</li>
+<li>Delete the corrupt file, run <code class="inline">list</code> — paste what happens (first-run rebirth).</li>
+</ol>
+<p><em>Done means:</em> unchanged default + one pasted friendly error with exit 1 + one rebirth. Module 2 checkpoint (0010) is next: async + event loop, then the gate.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="dials change behavior without code edits; defaults keep zero-setup working.">
+<p>1. Why read config from env?</p>
+<button data-key="a">Make code run faster</button>
+<button data-key="b">Bend sans code edits</button>
+<button data-key="c">Skip install step fully</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="data goes to stdout via log; problems to stderr via error; verdict via exit code.">
+<p>2. Error news travels how?</p>
+<button data-key="a">Log plus exit zero</button>
+<button data-key="b">Throw with no catch</button>
+<button data-key="c">Error plus exit one</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="missing means first run — start empty; corrupt means broken truth — say so firmly.">
+<p>3. Missing vs corrupt file?</p>
+<button data-key="a">Empty start, firm error</button>
+<button data-key="b">Crash hard both times</button>
+<button data-key="c">Hang and wait awhile</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="the boundary where outside bytes enter is where translation belongs.">
+<p>4. Where to catch bad JSON?</p>
+<button data-key="a">Deep in render logic</button>
+<button data-key="b">At load boundary edge</button>
+<button data-key="c">Nowhere, let it crash</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Config lives outside code now: <strong>env dials + kind defaults; stdout for data, stderr + exit 1 for problems; catch at the boundary, translate, never spray stacks at users</strong>. Next: async + the event loop — why one Node process serves thousands without threads.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://nodejs.org/en/learn/command-line/how-to-read-environment-variables-from-nodejs">Node.js — env vars</a> · <a href="https://nodejs.org/en/learn/errors">Node.js — errors</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0008-npm-and-modules.html">← 0008 npm + modules</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0010 (async + event loop) comes next, then the Module 2 checkpoint.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: default run writes tasks.json (prove with timestamps/ls); corrupt run prints exactly <code class="inline">error: ./demo.json is corrupt — fix it or delete it to start fresh.</code> + exit 1 (verify with <code class="inline">echo $?</code> / <code class="inline">$LASTEXITCODE</code>); deletion rebirths to silent empty list.</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “log errors so they're saved” — correct with the pipe demo (errors must bypass stdout capture).</p>
+</details>
+
+<footer><strong>Lesson 0009</strong> · Module 2 · Env + errors · Sources: <a href="https://nodejs.org/en/learn/command-line/how-to-read-environment-variables-from-nodejs">env</a>, <a href="https://nodejs.org/en/learn/errors">errors</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

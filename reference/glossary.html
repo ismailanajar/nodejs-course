@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TaskFlow Backend Glossary — v0 (Stage 1)</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="TaskFlow backend course glossary: client, server, port, HTTP request and response, API, JSON, and course terms with exact meanings.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/reference/glossary.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/reference/glossary.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TaskFlow Backend Glossary — v0 (Stage 1)">
+<meta property="og:description" content="TaskFlow backend course glossary: client, server, port, HTTP request and response, API, JSON, and course terms with exact meanings.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="TaskFlow Backend Glossary — v0 (Stage 1)">
+<meta name="twitter:description" content="TaskFlow backend course glossary: client, server, port, HTTP request and response, API, JSON, and course terms with exact meanings.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "TaskFlow Backend Glossary — v0 (Stage 1)", "description": "TaskFlow backend course glossary: client, server, port, HTTP request and response, API, JSON, and course terms with exact meanings.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>@media print{.topbar{display:none}}</style>
+</head>
+<body>
+<div class="topbar"><inner><span class="badge">reference · glossary v0</span><span>TaskFlow Course · <a href="../lessons/0001-course-map.html">Lesson 0001</a></span></inner></div>
+<main class="wrap">
+<h1>TaskFlow Glossary <span style="font-size:1rem;color:var(--muted)">v0 — earn these by using them</span></h1>
+<p class="subtitle">Compressed language for the whole course. Every lesson uses exactly these meanings.</p>
+<div class="rule"></div>
+<h2>Core</h2>
+<table>
+<tr><th>Term</th><th>Definition</th><th>Say instead of</th></tr>
+<tr><td><strong>Client</strong></td><td>The program that starts a request — usually your browser or frontend.</td><td>frontend, app</td></tr>
+<tr><td><strong>Server</strong></td><td>A long-running program that waits for requests and sends back responses.</td><td>backend, cloud</td></tr>
+<tr><td><strong>Port</strong></td><td>A numbered door on a machine where one server process listens.</td><td>socket, endpoint</td></tr>
+<tr><td><strong>HTTP request</strong></td><td>A structured message: method + path + headers + optional body.</td><td>call, fetch</td></tr>
+<tr><td><strong>HTTP response</strong></td><td>The server's reply: status code + headers + optional body.</td><td>return, output</td></tr>
+<tr><td><strong>API</strong></td><td>A documented set of request/response shapes a client may use.</td><td>server, database</td></tr>
+<tr><td><strong>JSON</strong></td><td>Text format for structured data both sides already parse.</td><td>object, payload</td></tr>
+<tr><td><strong>localhost</strong></td><td>The name for “this same machine I'm on now.”</td><td>127.0.0.1 (same thing, use this word)</td></tr>
+</table>
+<h2>Course spine</h2>
+<table>
+<tr><th>Term</th><th>Definition</th></tr>
+<tr><td><strong>TaskFlow</strong></td><td>The single task-management project that grows every module from CLI to deployed API.</td></tr>
+<tr><td><strong>Route → Controller → Service → DB</strong></td><td>The request path inside our API: URL matching, HTTP glue, business logic, persistence.</td></tr>
+<tr><td><strong>Middleware</strong></td><td>A function that sees a request before/after its handler (parsing, auth, errors).</td></tr>
+</table>
+<div class="callout warn"><strong>Rule:</strong> a term enters this glossary only once you can use it correctly. v0 terms are <em>introduced</em> in Lesson 0001 — they become <em>earned</em> when you pass the Module 1 checkpoint.</div>
+<footer>Sources: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP">MDN HTTP</a> · <a href="https://expressjs.com/en/api/">Express 5 API</a> · Back to <a href="../lessons/0001-course-map.html">Lesson 0001</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

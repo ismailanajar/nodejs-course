@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ismailanajar.github.io/nodejs-course/sitemap.xml

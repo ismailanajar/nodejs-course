@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0010 — One Cook, Many Orders: Async + Event Loop</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Async JavaScript and the Node.js event loop: what await really pauses, Promise.all overlap, blocking vs non-blocking in one runner.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0010-async-and-event-loop.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0010-async-and-event-loop.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0010 — One Cook, Many Orders: Async + Event Loop">
+<meta property="og:description" content="Async JavaScript and the Node.js event loop: what await really pauses, Promise.all overlap, blocking vs non-blocking in one runner.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0010 — One Cook, Many Orders: Async + Event Loop">
+<meta name="twitter:description" content="Async JavaScript and the Node.js event loop: what await really pauses, Promise.all overlap, blocking vs non-blocking in one runner.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0010 — One Cook, Many Orders: Async + Event Loop", "description": "Async JavaScript and the Node.js event loop: what await really pauses, Promise.all overlap, blocking vs non-blocking in one runner.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0009-env-vars-and-errors.html">← 0009</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0010</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 2 · NODE FUNDAMENTALS · LESSON 5</p>
+<h1>One cook, <span class="u-stroke">many orders</span></h1>
+<p class="subtitle">One sitting, one win: you can say exactly what await pauses — and what it leaves free.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Lessons 0006–0009</span><span>Objectives: await truth · parallel · loop sketch</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Your CLI awaits a file read and everything just... waits. Fine for one user. But a server awaits a database for user A <em>while</em> user B knocks — if awaiting blocked the whole process, backends couldn't exist. Today's question: what exactly freezes during <code class="inline">await</code>, and what stays open?</div>
+
+<h2>1 · The mental model: the counter, not the kitchen</h2>
+<div class="mermaid">flowchart LR
+  subgraph BLOCK["BLOCKING cook (never do this)"]
+    direction TB
+    B1["take order 1"]
+    B2["stare at oven..."]
+    B3["serve 1, then order 2"]
+  end
+  subgraph NONB["NODE cook (always this)"]
+    direction TB
+    N1["take order 1 → oven"]
+    N2["take order 2 → oven"]
+    N3["serve whoever dings first"]
+  end
+</div>
+<p class="diagram-cap"><strong>Chart 20 — Two cooks.</strong> Same single cook in both! Difference: the good cook never stares — waiting happens in the oven (the OS), not at the counter.</p>
+<details><summary><strong>Source + the one sentence (click)</strong></summary>
+<p>The sentence: <code class="inline">await</code> pauses <em>your function</em>, never the process — the file read waits inside the OS while Node takes the next order. Blocking code (a giant loop, <code class="inline">JSON.parse</code> of megabytes) is staring at the oven: everything queues behind it. Source: <a href="https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick">Node.js — event loop</a>.</p>
+<pre>flowchart LR
+  B1["take order"] --> B2["stare..."] --> B3["serve late"]
+  N1["order 1 → oven"] --> N2["order 2 → oven"] --> N3["serve first ding"]</pre>
+</details>
+
+<h2>2 · The loop in six boxes (no internals degree needed)</h2>
+<div class="mermaid">flowchart TD
+  S["your code runs<br/>(top to bottom)"] --> W{"hit await<br/>on I/O?"}
+  W -- No --> S2["keep running<br/>same breath"]
+  W -- Yes --> O["hand wait to OS<br/>function sleeps HERE"]
+  O --> L["LOOP: take next ready task<br/>timers, files, network"]
+  L --> R["wait finished?<br/>ding!"]
+  R -- Yes --> C["resume YOUR function<br/>after the await"]
+  R -- No --> L
+  C --> S
+</div>
+<p class="diagram-cap"><strong>Chart 21 — Event loop sketch.</strong> Simplified but honest: your code never runs in parallel (one breath at a time); <em>waits</em> overlap because they live outside.</p>
+<details><summary><strong>Source + what to ignore (click)</strong></summary>
+<p>Ignore for now: phases, micro vs macro queues, libuv threads — all real, all unneeded before you debug starvation (Module 7+). Keep only: one runner, outside waits, resume-on-ding. That model correctly predicts every demo in this lesson.</p>
+<pre>flowchart TD
+  S["code runs"] --> W{"await on I/O?"}
+  ...</pre>
+</details>
+
+<h2>3 · Sequential vs parallel: the timeline that pays</h2>
+<div class="mermaid">gantt
+  title Two 500ms reads — sequential vs parallel
+  dateFormat x
+  axisFormat %Lms
+  section sequential (await, await)
+  read A :a1, 0, 500
+  read B :after a1, 500
+  section parallel (Promise.all)
+  read A :b1, 0, 500
+  read B :b2, 0, 500
+</div>
+<p class="diagram-cap"><strong>Chart 22 — Gantt proof.</strong> Same two waits: ~1000ms stacked vs ~500ms overlapped. Independence is the only requirement.</p>
+<details><summary><strong>Source + rule (click)</strong></summary>
+<p>Rule: independent waits → <code class="inline">Promise.all([a, b])</code>; dependent steps (need A's result for B) → sequential awaits. <code class="inline">Promise.all</code> rejects fast on the first failure — handle with try/catch around it like any await.</p>
+<pre>gantt
+  title Two 500ms reads ...
+  ...</pre>
+</details>
+
+<h2>4 · Live demo: feel the overlap + the stare (8 min)</h2>
+<p>Create <code class="inline">overlap.mjs</code> — artificial slow ovens via timers, real stopwatch via <code class="inline">Date.now()</code>:</p>
+<pre>// file: overlap.mjs
+const oven = (ms, name) =>
+  new Promise((done) => setTimeout(() => done(`${name} ding after ${ms}ms`), ms));
+
+let t = Date.now();
+console.log("sequential:", await oven(500, "A"), "|", await oven(500, "B"),
+  `| total ${Date.now() - t}ms`);
+t = Date.now();
+console.log("parallel:", await Promise.all([oven(500, "A"), oven(500, "B")]),
+  `| total ${Date.now() - t}ms`);</pre>
+<pre>node overlap.mjs
+<span class="c"># expected: sequential … total ~1000ms / parallel … total ~500ms — chart 22, alive</span></pre>
+<p>Now the stare — one blocking loop freezes even a 0ms timer. Predict before running:</p>
+<pre>// file: stare.mjs
+setTimeout(() => console.log("timer: I should be instant..."), 0);
+const end = Date.now() + 1500;
+while (Date.now() &lt; end) {} // staring at the oven for 1.5s
+console.log("loop done — only NOW does the timer speak");</pre>
+<pre>node stare.mjs
+<span class="c"># expected: 1.5s silence, then BOTH lines — the 0ms timer waited behind your loop.
+# One runner, proven: no JS runs while JS runs.</span></pre>
+<p>Why it works: timers hand their wait to the OS (chart 21's loop serves them); the busy loop never yields, so the loop can't reach the dinged timer. Servers die exactly this way — never loop big in a handler (Module 4 will remind you).</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>CLI barely needs this (one user, one breath). Servers live by it: while Postgres thinks for user A, your handler for user B runs — thousands of overlapping dings, one process, tiny memory. Every future “why is the API slow?” splits into chart-20 halves: slow ovens (DB, network — scale/parallelize) vs staring cooks (blocking code — delete it).</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“await in a loop for independent reads.”</strong> Five files read one-by-one = 5× time. Fix: map to promises + one <code class="inline">Promise.all</code> — chart 22's bottom half.</div>
+<div class="callout"><strong>“await pauses everything.”</strong> It pauses your function; timers/files/network of others proceed. Fix: re-read chart 21 — only <em>your</em> continuation sleeps.</div>
+<div class="callout warn"><strong>“Sync crypto/hash in a handler.”</strong> Preview of a Module 6 landmine: password hashing has sync AND async forms — the sync form stares. Fix: always the async form in servers; you'll be graded on this later.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Run both demos; paste both outputs with your one-line prediction for <code class="inline">stare.mjs</code> written BEFORE running (honest science).</li>
+<li>In <code class="inline">overlap.mjs</code>, add a third 500ms oven to both halves; predict both totals, run, paste.</li>
+<li>One sentence: why can 100 users share one Node server while one busy loop ruins it for all?</li>
+</ol>
+<p><em>Done means:</em> two pasted outputs + prediction record + third-oven numbers (~1500 vs ~500) + one sentence. Module 2 checkpoint (0011) is next — the gate to servers.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="your function sleeps at the await; the process serves everything else.">
+<p>1. What does await pause?</p>
+<button data-key="a">Whole process every time</button>
+<button data-key="b">Only your function here</button>
+<button data-key="c">All timers forever more</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="independent waits overlap with Promise.all; dependent steps stay sequential.">
+<p>2. Two independent reads — pick?</p>
+<button data-key="a">Nested callbacks three deep</button>
+<button data-key="b">Sequential awaits in loop</button>
+<button data-key="c">Single Promise.all both</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="one runner: while your JS runs, nothing else — not even a 0ms timer.">
+<p>3. Busy loop blocks what?</p>
+<button data-key="a">Everything until loop ends</button>
+<button data-key="b">Only file system calls</button>
+<button data-key="c">Nothing, timers jump queue</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="waits live in the OS; the loop resumes your function on ding.">
+<p>4. Where do waits live?</p>
+<button data-key="a">Inside your function stack</button>
+<button data-key="b">Outside in OS hands</button>
+<button data-key="c">Within package lock file</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">You now see single-threaded speed: <strong>await sleeps your function, the OS holds waits, the loop serves dings; parallelize independence, never stare</strong>. Next: the Module 2 checkpoint — blank-page redraws, then Module 3: your first listening server.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick">Node.js — event loop</a> · <a href="https://nodejs.org/en/learn/asynchronous-work/discover-promises">Node.js — promises</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0009-env-vars-and-errors.html">← 0009 Env + errors</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Module 2 checkpoint (0011) comes next — then servers.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: stare prediction must say “timer waits ~1.5s” (wrong predictions celebrated — then corrected by output). Third oven: sequential ~1500ms, parallel ~500ms. One sentence: “one runner serves all dings, so overlapping waits are free — but one staring loop holds the only runner hostage.”</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “async = parallel code” — correct: async overlaps waits; code still runs one-at-a-time.</p>
+</details>
+
+<footer><strong>Lesson 0010</strong> · Module 2 · Async + event loop · Sources: <a href="https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick">loop</a>, <a href="https://nodejs.org/en/learn/asynchronous-work/discover-promises">promises</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

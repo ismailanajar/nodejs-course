@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0017 — Express: Hire the Receptionist</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Express 5 hello: declare rooms instead of guarding, read dressed req params query body, reply with res.json — same API, less code.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0017-express-hello.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0017-express-hello.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0017 — Express: Hire the Receptionist">
+<meta property="og:description" content="Express 5 hello: declare rooms instead of guarding, read dressed req params query body, reply with res.json — same API, less code.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0017 — Express: Hire the Receptionist">
+<meta name="twitter:description" content="Express 5 hello: declare rooms instead of guarding, read dressed req params query body, reply with res.json — same API, less code.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0017 — Express: Hire the Receptionist", "description": "Express 5 hello: declare rooms instead of guarding, read dressed req params query body, reply with res.json — same API, less code.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0016-module-3-checkpoint.html">← 0016</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0017</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 4 · EXPRESS + REST · LESSON 1</p>
+<h1>Hire <span class="u-stroke">the receptionist</span></h1>
+<p class="subtitle">One sitting, one win: your three rooms run on Express — same bones, a tenth of the handwriting.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Module 3 gate</span><span>Objectives: routes · params · json I/O</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Your raw server works — and every new room re-pays the same taxes: split URL, compare strings, collect chunks, set headers, remember <code class="inline">return</code>. Three helpers, a guard diamond, 100+ lines before any <em>feature</em>. A framework is that ceremony, extracted once by people who've paid it a thousand times. Today you cash chart 45's check.</div>
+
+<h2>1 · The mental model: declare, don't guard</h2>
+<div class="mermaid">flowchart LR
+  subgraph HAND["hand-rolled (Module 3)"]
+    direction TB
+    H1["YOU split + compare<br/>every knock"]
+    H2["YOU collect chunks<br/>every POST"]
+    H3["YOU stringify + header<br/>every reply"]
+  end
+  subgraph EXP2["Express (today)"]
+    direction TB
+    E1["declare: app.get(path, fn)<br/>guard pre-built"]
+    E2["use(express.json())<br/>bodies pre-parsed"]
+    E3["res.status().json(obj)<br/>replies pre-built"]
+  end
+  HAND -.->|"same bones"| EXP2
+</div>
+<p class="diagram-cap"><strong>Chart 47 — Ceremony extracted.</strong> Your feature code (decide + validate + store) doesn't shrink — everything <em>around</em> it vanishes.</p>
+<details><summary><strong>Source + what stays yours (click)</strong></summary>
+<p>Stays yours forever: the decisions (which rooms, which shapes, which statuses) and the storage. Express owns: matching, parsing, formatting, and the 404 trapdoor (built in — unmatched knocks get a proper 404 free). Source: <a href="https://expressjs.com/en/starter/hello-world.html">Express — Hello world</a>, <a href="https://expressjs.com/en/5x/api.html">Express 5 API</a> (course pins v5; needs Node 18+, yours is 24).</p>
+<pre>flowchart LR
+  H1["you split+compare"] -.-> E1["declare rooms"]
+  ...</pre>
+</details>
+
+<h2>2 · One knock through Express layers</h2>
+<div class="mermaid">sequenceDiagram
+  participant K as knock
+  participant J as express.json()
+  participant R as router
+  participant F as YOUR fn(req, res)
+  K->>J: raw bytes
+  J->>J: parse body → req.body
+  J->>R: dressed-up req
+  R->>R: match method+path → params
+  R->>F: req with .params/.query/.body
+  F->>K: res.status().json()
+</div>
+<p class="diagram-cap"><strong>Chart 48 — Dressing-up pipeline.</strong> Each layer adds something to <code class="inline">req</code>, then your function sees a civilized object. Middleware (lesson 0018) is just named layers you can insert here.</p>
+<details><summary><strong>Source + reading req (click)</strong></summary>
+<p>After the pipeline: <code class="inline">req.params.id</code> (path slots, strings), <code class="inline">req.query.done</code> (filters, strings-or-undefined), <code class="inline">req.body</code> (parsed object — or undefined when no/foreign body). The hand-rolled splitter, searchParams-juggling, and chunk collector all retired into these three fields.</p>
+<pre>sequenceDiagram
+  participant K as knock
+  participant J as json layer
+  participant R as router
+  participant F as your fn
+  ...</pre>
+</details>
+
+<h2>3 · Reply vocabulary: two calls cover everything</h2>
+<div class="mermaid">flowchart TD
+  D4["need to reply?"] --> S2a["res.status(N).json(obj)<br/>data + status (99% of life)"]
+  D4 --> N2["res.status(204).end()<br/>success, nothing to say"]
+  S2a --> X2["Express sets type,<br/>stringifies, ends"]
+</div>
+<p class="diagram-cap"><strong>Chart 49 — Reply vocabulary.</strong> Two shapes replace the <code class="inline">send</code> helper — and forgetting <code class="inline">return</code> still double-replies, framework or not.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>flowchart TD
+  D4["reply?"] --> S2a["status().json()"] / N2["204 .end()"]</pre>
+</details>
+
+<h2>4 · Live demo: three rooms, thirty lines (10 min)</h2>
+<pre>npm install express
+<span class="c"># check: "express": "^5.x" in package.json — v5 needs Node 18+, yours is 24 ✓</span></pre>
+<p>Create <code class="inline">app.mjs</code> — keep <code class="inline">server.mjs</code>, this one stands beside it:</p>
+<pre>// file: app.mjs
+import express from "express";
+
+const app = express();
+app.use(express.json()); // bodies pre-parsed → req.body (chart 48, layer 1)
+
+const tasks = [
+  { id: "a1", title: "Learn routing", done: true },
+  { id: "b2", title: "Learn bodies", done: false },
+];
+
+app.get("/health", (req, res) =&gt; res.json({ ok: true }));
+
+app.get("/tasks", (req, res) =&gt; {
+  const { done } = req.query;
+  const list = done === undefined ? tasks : tasks.filter((t) =&gt; String(t.done) === done);
+  res.json(list); // 200 + type + stringify, free
+});
+
+app.get("/tasks/:id", (req, res) =&gt; { // ← the pain remover: no manual split!
+  const task = tasks.find((t) =&gt; t.id === req.params.id);
+  if (!task) return res.status(404).json({ error: "unknown task" });
+  res.json(task);
+});
+
+app.post("/tasks", (req, res) =&gt; {
+  const title = req.body?.title; // already parsed — no chunks, no collector
+  if (typeof title !== "string" || !title.trim())
+    return res.status(400).json({ error: "title is required (non-empty string)" });
+  const task = { id: `t${Date.now()}`, title: title.trim(), done: false };
+  tasks.push(task);
+  res.status(201).json(task);
+});
+
+app.listen(3000, () =&gt; console.log("express on http://localhost:3000"));</pre>
+<pre>node app.mjs
+node -e "console.log(await (await fetch('http://localhost:3000/tasks/a1')).json())"
+<span class="c"># expected: { id: 'a1', title: 'Learn routing', done: true } — params, no splitting</span>
+node -e "const r = await fetch('http://localhost:3000/tasks',{method:'POST',headers:{'content-type':'application/json'},body:'{oops'}); console.log(r.status, await r.json())"
+<span class="c"># expected: 400 + HTML?? — read §6 first box BEFORE running. Then run and compare.</span></pre>
+<p>Why it works: the router matched method+path (guard retired), <code class="inline">:id</code> captured the slot (splitter retired), <code class="inline">express.json()</code> parsed or rejected the parcel (collector retired). Your remaining code is pure decision.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Same building, new superintendent: 0018 adds middleware (logging, auth-preview, error catcher), 0019 validation with Zod (hand-checks retire), 0020 structure (routes/controllers/services split) — then the Module 4 checkpoint gates databases. The raw <code class="inline">server.mjs</code> stays as your museum of what frameworks earn.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Corrupt JSON gives HTML, not my 400.”</strong> <code class="inline">express.json()</code> rejects bad parcels with its own HTML error before your handler runs. Fix (for now): notice it, don't fight it — lesson 0019 installs a JSON error translator; until then, valid-JSON clients only.</div>
+<div class="callout"><strong>“Forgot app.use(express.json()) → req.body undefined.”</strong> Layers only dress what you install. Fix: the <code class="inline">use</code> line is load-bearing — no parser, no <code class="inline">req.body</code>, ever.</div>
+<div class="callout warn"><strong>“Two replies: headers already sent.”</strong> <code class="inline">res.json(a); res.json(b)</code> without return — framework doesn't save you from fall-through. Fix: <code class="inline">return res.status(...).json(...)</code> on every early exit (lesson 0013's habit, unchanged).</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Run the demo; knock all five rooms (health, list, filtered, item, item-404, three POST cases); paste statuses + bodies.</li>
+<li>Add <code class="inline">PUT /tasks/:id</code> (partial: title?/done? with type checks) + <code class="inline">DELETE /tasks/:id</code> (204/404) in Express; run the 0015 lifecycle drill against them; paste outputs.</li>
+<li>Count: non-blank lines of <code class="inline">app.mjs</code> vs old <code class="inline">server.mjs</code> — paste both numbers + which helper vanished entirely.</li>
+</ol>
+<p><em>Done means:</em> six knock pastes + full Express lifecycle + two line counts. Lesson 0018 (middleware: the pipeline you control) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="matching, parsing, formatting retire — decisions and storage stay yours.">
+<p>1. Express removes what?</p>
+<button data-key="a">Decisions and storage logic</button>
+<button data-key="b">Ceremony around decisions</button>
+<button data-key="c">Need for status codes</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="params hold path slots, query holds filters, body holds the parsed parcel.">
+<p>2. req.params.id holds?</p>
+<button data-key="a">Query filter strings set</button>
+<button data-key="b">Parsed JSON body object</button>
+<button data-key="c">Path slot string value</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="no parser layer installed means req.body stays undefined forever.">
+<p>3. req.body undefined — why?</p>
+<button data-key="a">Parser layer never installed</button>
+<button data-key="b">Port taken by old server</button>
+<button data-key="c">JSON keys use capitals</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="fall-through replies twice — return after every early reply, framework or not.">
+<p>4. Headers-sent error — cause?</p>
+<button data-key="a">Wrong port in listen</button>
+<button data-key="b">Forgot return after reply</button>
+<button data-key="c">Missing content-type head</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Framework era, same bones: <strong>declare rooms (app.METHOD), read dressed req (params/query/body), reply with status().json(), install the parsers you use</strong>. Next: middleware — layers you write yourself.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://expressjs.com/en/starter/hello-world.html">Express — Hello world</a> · <a href="https://expressjs.com/en/5x/api.html">Express 5 API</a> · <a href="https://expressjs.com/en/starter/faq.html">Express FAQ</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0016-module-3-checkpoint.html">← 0016 Checkpoint</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0018 (middleware + error catcher) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: PUT/DELETE mirror 0015 logic with <code class="inline">req.params.id</code> + <code class="inline">return res.status().json()</code>; lifecycle outputs identical statuses (201/200/204). Line counts ≈ app.mjs ~45 vs server.mjs ~110 (varies) — vanished entirely: <code class="inline">readBody</code> (+ manual split + send helper).</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “Express validates input” — correct: it parses, never judges; validation stays yours (0019).</p>
+</details>
+
+<footer><strong>Lesson 0017</strong> · Module 4 · Express hello · Sources: <a href="https://expressjs.com/">Express docs</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

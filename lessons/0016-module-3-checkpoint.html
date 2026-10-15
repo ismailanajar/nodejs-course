@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0016 — Module 3 Checkpoint: Gate to Express</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Module 3 checkpoint: trace any raw HTTP knock blind, guard with exact statuses — the gate to Express.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0016-module-3-checkpoint.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0016-module-3-checkpoint.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0016 — Module 3 Checkpoint: Gate to Express">
+<meta property="og:description" content="Module 3 checkpoint: trace any raw HTTP knock blind, guard with exact statuses — the gate to Express.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0016 — Module 3 Checkpoint: Gate to Express">
+<meta name="twitter:description" content="Module 3 checkpoint: trace any raw HTTP knock blind, guard with exact statuses — the gate to Express.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0016 — Module 3 Checkpoint: Gate to Express", "description": "Module 3 checkpoint: trace any raw HTTP knock blind, guard with exact statuses — the gate to Express.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0015-file-behind-http.html">← 0015</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Checkpoint</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 3 · CHECKPOINT · GATE TO EXPRESS</p>
+<h1>Raw HTTP, <span class="u-stroke">no peeking</span></h1>
+<p class="subtitle">One sitting, one win: you rebuild the whole server shape from memory — then never hand-roll it again.</p>
+<div class="meta">
+<span>⏱ 40–50 min</span><span>Prerequisites: Lessons 0012–0015</span><span>Objectives: retrieve · triage · gate</span>
+</div>
+</header>
+
+<div class="callout why"><strong>Same deal:</strong> draw first, compare second. This checkpoint's prize is special — every chart below becomes one Express line in Module 4, and you'll know exactly what each line <em>buys</em>.</div>
+
+<h2>0 · Your Module 3 journey on one chart</h2>
+<div class="mermaid">journey
+  title Module 3 — what you wired
+  section 0012 Listen
+    Reply on door 3000: 4: You
+    Trigger EADDRINUSE calmly: 3: You
+  section 0013 Route
+    Guard method plus path: 4: You
+    Split path from query: 4: You
+  section 0014 Receive
+    Collect then parse body: 5: You
+    Refuse with precise 400: 4: You
+  section 0015 Persist
+    Full CRUD over HTTP: 5: You
+    Name the file race: 3: You
+  section 0016 Today
+    Redraw it all blank: 5: You
+</div>
+<p class="diagram-cap"><strong>Chart 41 — Journey.</strong> Shaky task → re-open its lesson before exercises.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>journey
+  title Module 3 — what you wired
+  ...</pre>
+</details>
+
+<h2>1 · Cover-and-draw #1: one knock, whole truth</h2>
+<p><strong>Blank page.</strong> Trace a <code class="inline">POST /tasks</code> from TCP arrival to <code class="inline">201</code>, naming every object and file touched. Then diff:</p>
+<div class="mermaid">sequenceDiagram
+  participant K as knock
+  participant D as door :3000
+  participant G as guard (method+path)
+  participant B as body collector
+  participant F as tasks.json
+  K->>D: TCP arrives
+  D->>G: req { method, url } + res
+  G->>B: route matched POST /tasks
+  B->>B: chunks → text → parse → validate
+  B->>F: load → push → save
+  B->>K: 201 + created task
+</div>
+<p class="diagram-cap"><strong>Chart 42 — POST knock, whole truth.</strong> Six actors, zero framework. This is the most complete picture you own so far.</p>
+<details><summary><strong>Source + grading (click)</strong></summary>
+<p>Full marks = 6 actors in order + the words chunks, validate, 201 all present. Missing the file hop = re-read 0015; missing validate = re-read 0014.</p>
+<pre>sequenceDiagram
+  participant K as knock
+  ...
+  B->>K: 201 + created task</pre>
+</details>
+
+<h2>2 · Cover-and-draw #2: guard + statuses</h2>
+<div class="mermaid">flowchart TD
+  K2["knock: method + url"] --> SP["split path/query"]
+  SP --> M{"match room?"}
+  M -- "GET /health" --> R1["200 { ok }"]
+  M -- "GET /tasks" --> R2["200 list"]
+  M -- "POST /tasks" --> R3["201 / 400"]
+  M -- "PUT /tasks/:id" --> R4["200 / 400 / 404"]
+  M -- "DELETE /tasks/:id" --> R5["204 / 404"]
+  M -- "else" --> R6["404 no such room"]
+</div>
+<p class="diagram-cap"><strong>Chart 43 — Guard with every status.</strong> Six exits; each number is a promise clients branch on.</p>
+<details><summary><strong>Source + grading (click)</strong></summary>
+<p>Full marks = all six branches with exact statuses (200/200/201/200/204/404) + 400s noted on write paths. Swapped 201/200 or a bodied 204 loses half.</p>
+<pre>flowchart TD
+  K2["method + url"] --> SP["split"] --> M{"match?"}
+  ...</pre>
+</details>
+
+<h2>3 · HTTP triage, upgraded (chart 4 grows up)</h2>
+<div class="mermaid">flowchart TD
+  E4["HTTP failed?!"] --> Q13{"response arrived?"}
+  Q13 -- No --> N4["refused/DNS — door/building"]
+  Q13 -- Yes --> Q23{"status?"}
+  Q23 -- "4xx" --> Q33{"which 4xx?"}
+  Q33 -- "404" --> A404["wrong room/id — fix address"]
+  Q33 -- "400" --> A400["my parcel/shape wrong — read error object"]
+  Q23 -- "5xx/crash" --> A500["server hole — which hop threw?"]
+  Q23 -- "hangs" --> AH["missing res.end — handler never replied"]
+</div>
+<p class="diagram-cap"><strong>Chart 44 — Triage with bodies and hangs.</strong> New branches vs Module 1: 400-vs-404 split and the hang (unfinished reply).</p>
+<details><summary><strong>Source + runs (click)</strong></summary>
+<p>Runs: hang on POST → forgot end/collect (chart 35). 400 with error object → read it, it names your fault. 404 on id → address, not parcel. This chart is your Module 4 debugger too.</p>
+<pre>flowchart TD
+  E4["failed?!"] --> Q13{"response?"} --> ...
+  ...</pre>
+</details>
+
+<h2>4 · What Express will erase (preview, not lesson)</h2>
+<div class="mermaid">flowchart LR
+  subgraph RAW["your hand (today)"]
+    H1["guard diamond<br/>split + compare"]
+    H2["readBody helper<br/>chunks + cap"]
+    H3["send helper<br/>type + stringify"]
+  end
+  subgraph EXP["Express (Module 4)"]
+    E11["app.get/post/put/delete<br/>one line per room"]
+    E12["express.json()<br/>bodies pre-parsed"]
+    E21["res.json / res.status<br/>replies pre-built"]
+  end
+  RAW -.->|"same bones<br/>less handwriting"| EXP
+</div>
+<p class="diagram-cap"><strong>Chart 45 — Why the framework earns it.</strong> Nothing new conceptually — three hand-rolled helpers become three framework calls. That's the whole pitch.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>flowchart LR
+  subgraph RAW["hand-rolled"]
+  ...
+  end</pre>
+</details>
+
+<h2>5 · Where Module 3 hours go</h2>
+<div class="mermaid">pie title Module 3 stuck-hours (illustrative, not data)
+  "forgotten res.end hangs" : 30
+  "raw-url query breakage" : 25
+  "double replies / fall-through" : 25
+  "real network issues" : 20
+</div>
+<p class="diagram-cap"><strong>Chart 46 — Illustrative split.</strong> Every slice is a ceremony Express automates — which is why Module 4 follows immediately.</p>
+
+<h2>6 · Retrieval exercises (blank page, then check)</h2>
+<ol class="steps">
+<li><strong>Knock redraw</strong> — chart 42 from memory, 6 actors in order (§1 rubric).</li>
+<li><strong>Guard rewrite</strong> — chart 43 from memory with all six statuses, no peeking.</li>
+<li><strong>Triage ×3</strong> — verdict + fix for: (a) POST hangs 30s, (b) <code class="inline">400 title required</code> on a careful client, (c) <code class="inline">GET /tasks/xyz</code> → 404 (is anything broken?).</li>
+<li><strong>Live drill</strong> — cold: write a 3-room server (health/tasks-GET/tasks-POST) from memory, knock all rooms, paste outputs. Helpers allowed, old code not.</li>
+</ol>
+<p><em>Done means:</em> two sheets + three verdicts + one working mini-server. When all pass, Module 4 is unlocked — the framework era.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="chunks stream — parse once at end, never mid-flight.">
+<p>1. Parse body when?</p>
+<button data-key="a">On first chunk arrival</button>
+<button data-key="b">Once at end event</button>
+<button data-key="c">Before headers arrive</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="load per knock keeps truth fresh — startup snapshots rot.">
+<p>2. File loads when?</p>
+<button data-key="a">Per knock every time</button>
+<button data-key="b">Once at startup only</button>
+<button data-key="c">Never, trust the cache</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="nothing replied — the handler path forgot its ending.">
+<p>3. POST hangs — cause?</p>
+<button data-key="a">Port taken by other</button>
+<button data-key="b">JSON body too large</button>
+<button data-key="c">Missing res.end call</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="404 answers wrong addresses; the parcel was never the issue.">
+<p>4. 404 on known shape?</p>
+<button data-key="a">Fix address, not parcel</button>
+<button data-key="b">Resend parcel twice more</button>
+<button data-key="c">Restart server at once</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="same bones, less handwriting — guard, bodies, replies pre-built.">
+<p>4b. Express mainly buys?</p>
+<button data-key="a">New concepts to learn</button>
+<button data-key="b">Less handwriting, same bones</button>
+<button data-key="c">Faster network hardware</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>7 · Summary + gate to Module 4</h2>
+<div class="callout why">Module 3 is yours when: <strong>you trace any knock blind, guard with exact statuses, triage hangs vs 400s vs 404s, and cold-write a 3-room server</strong>. Next: Module 4 — Express, where chart 45's dotted arrow becomes real and hand-rolling ends.</div>
+
+<div class="callout">
+<strong>Primary sources (re-read only misses):</strong> <a href="https://nodejs.org/api/http.html">Node.js — http</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status">MDN — status</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0015-file-behind-http.html">← 0015 File + CRUD</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Module 4 starts at 0017 — Express hello, middleware, and the tasks API reborn.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Ex3: (a) hang → missing end/collect on that path — add ending, re-knock. (b) 400 names the fault — diff parcel vs contract (likely blank title or array body). (c) nothing broken — 404 is the correct answer to unknown id; verify with a known id returning 200. Ex4 server must answer 200/200-or-filtered/201 with JSON content-type; 404 trapdoor required.</p>
+<p>Quiz: 1b, 2a, 3c, 4a, 4b→b. Gate: ≥4/5 + cold server working = Module 4 unlocked.</p>
+</details>
+
+<footer><strong>Checkpoint 0016</strong> · Module 3 gate · 6 charts · Sources: Node http/MDN status · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

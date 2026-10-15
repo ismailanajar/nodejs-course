@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0006 — Run JavaScript Outside the Browser</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Run JavaScript outside the browser with Node.js: browser vs Node runtimes, scripts, argv arguments, and why document is undefined.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0006-run-js-outside-the-browser.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0006-run-js-outside-the-browser.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0006 — Run JavaScript Outside the Browser">
+<meta property="og:description" content="Run JavaScript outside the browser with Node.js: browser vs Node runtimes, scripts, argv arguments, and why document is undefined.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0006 — Run JavaScript Outside the Browser">
+<meta name="twitter:description" content="Run JavaScript outside the browser with Node.js: browser vs Node runtimes, scripts, argv arguments, and why document is undefined.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0006 — Run JavaScript Outside the Browser", "description": "Run JavaScript outside the browser with Node.js: browser vs Node runtimes, scripts, argv arguments, and why document is undefined.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0005-module-1-checkpoint.html">← 0005</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0006</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 2 · NODE FUNDAMENTALS · LESSON 1</p>
+<h1>JavaScript <span class="u-stroke">leaves</span> the browser</h1>
+<p class="subtitle">One sitting, one win: you run a real program on your machine — with arguments, output, and no browser in sight.</p>
+<div class="meta">
+<span>⏱ 25–35 min</span><span>Prerequisites: Module 1 gate</span><span>Objectives: runtime split · node run · argv</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Until today your JavaScript only existed inside a tab: refresh and it's gone, files are unreachable, and “running code” meant “opening a page”. A backend is the opposite — a program that runs on a machine, reads its files, and never needs a tab. Today your laptop becomes that machine.</div>
+
+<h2>1 · The mental model: same engine, different vehicle</h2>
+<p>JavaScript the <em>language</em> never changed. What changed is the <strong>runtime</strong> around it — the tools parked next to the engine:</p>
+<div class="mermaid">flowchart LR
+  subgraph BR["BROWSER runtime"]
+    direction TB
+    V1["V8 engine<br/>runs your JS"]
+    D["DOM + window<br/>buttons, fetch, sandbox"]
+    V1 --- D
+  end
+  subgraph ND["NODE runtime"]
+    direction TB
+    V2["V8 engine<br/>runs your JS"]
+    O["OS access<br/>files, processes, network"]
+    V2 --- O
+  end
+  BR -.->|"same language"| ND
+</div>
+<p class="diagram-cap"><strong>Chart 8 — Two runtimes, one language.</strong> Engine identical (V8); the neighbors differ: browser gives pages, Node gives the machine.</p>
+<details><summary><strong>Source + what it predicts (click)</strong></summary>
+<p>Prediction power: <code class="inline">document</code> exists left, missing right. <code class="inline">process.argv</code> exists right, missing left. Every “X is not defined” error for the rest of the course is answered by asking <em>which vehicle am I in?</em> Source: <a href="https://nodejs.org/en/docs">Node.js docs</a>.</p>
+<pre>flowchart LR
+  subgraph BR["BROWSER runtime"]
+    V1["V8 engine"] --- D["DOM + window"]
+  end
+  subgraph ND["NODE runtime"]
+    V2["V8 engine"] --- O["OS access"]
+  end</pre>
+</details>
+
+<h2>2 · What running a script actually does</h2>
+<div class="mermaid">sequenceDiagram
+  participant Y as You (terminal)
+  participant N as node hello.mjs Ada
+  participant V as V8 engine
+  Y->>N: node greet.mjs Ada
+  N->>V: load file + argv
+  V->>V: execute top to bottom
+  V->>N: console.log text
+  N->>Y: print + exit code 0
+</div>
+<p class="diagram-cap"><strong>Chart 9 — One script run.</strong> Five hops, under a second. Note the last one: every program ends with an <em>exit code</em> (0 = fine).</p>
+<details><summary><strong>Source + walkthrough (click)</strong></summary>
+<p>① you type the command ② Node loads your file <em>and</em> the words after it (argv) ③ V8 runs it ④ <code class="inline">console.log</code> hands text back ⑤ terminal prints it and Node exits. A <em>server</em> (Module 3) is this same flow with step ⑤ replaced by “stay awake and wait”. <code class="inline">node --version</code> on your machine must print <code class="inline">v24.x</code> — confirm it now.</p>
+<pre>sequenceDiagram
+  participant Y as You (terminal)
+  participant N as node
+  participant V as V8 engine
+  ...</pre>
+</details>
+
+<h2>3 · Arguments: words after the filename are data</h2>
+<div class="mermaid">flowchart LR
+  T["terminal words<br/>node greet.mjs Ada --loud"] --> A["process.argv<br/>[node, file, Ada, --loud]"]
+  A --> S["your code picks<br/>argv[2], argv[3]..."]
+  S --> O2["output changes<br/>without editing code"]
+</div>
+<p class="diagram-cap"><strong>Chart 10 — argv pipeline.</strong> Same file, different words, different behavior — your first taste of programs that <em>take input</em>.</p>
+<details><summary><strong>Source + rule (click)</strong></summary>
+<p>Rule: <code class="inline">argv[0]</code> is node itself, <code class="inline">argv[1]</code> is your file — <em>yours start at 2</em>. Forgetting this is the #1 beginner off-by-one; chant “zero node, one file, two mine”.</p>
+<pre>flowchart LR
+  T["terminal words"] --> A["process.argv"] --> S["your code"] --> O2["output"]</pre>
+</details>
+
+<h2>4 · Live demo: greet + the missing DOM (5 min)</h2>
+<p>Create <code class="inline">greet.mjs</code> — same file as Lesson 0001, now with arguments:</p>
+<pre>// file: greet.mjs
+const name = process.argv[2] ?? "future backend dev";
+const loud = process.argv.includes("--loud");
+let line = `hello ${name} — Node ${process.version}`;
+console.log(loud ? line.toUpperCase() : line);</pre>
+<pre>node greet.mjs Ada
+<span class="c"># expected: hello Ada — Node v24.x.x</span>
+node greet.mjs Ada --loud
+<span class="c"># expected: HELLO ADA — NODE V24.X.X</span></pre>
+<p>Now prove the vehicle split with one line — run it and read the error like a pro:</p>
+<pre>node -e "console.log(typeof document)"
+<span class="c"># expected: undefined — no DOM in Node, and that's normal, not a bug</span></pre>
+<p>Why it works: <code class="inline">??</code> supplies the default when no name is given; <code class="inline">process.argv</code> carries your words in; <code class="inline">document</code> is simply not parked in this vehicle (chart 8 said so).</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>CLI TaskFlow v0 (next lessons) is <code class="inline">greet.mjs</code> grown up: <code class="inline">node tasks.mjs add "Buy milk"</code> instead of <code class="inline">node greet.mjs Ada</code>. Same argv pipeline, same exit — plus files (lesson 0007) so tasks survive the terminal closing. The server in Module 3 is the same program that <em>doesn't exit</em>.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Double-clicked the file, window flashed.”</strong> .mjs files don't run by double-click. Fix: always run from a terminal with <code class="inline">node filename.mjs</code> so you see output + errors.</div>
+<div class="callout"><strong>“document is not defined.”</strong> You drove browser code into Node's vehicle. Fix: check chart 8 — DOM stays in the browser; in Node use <code class="inline">console</code>, <code class="inline">process</code>, files.</div>
+<div class="callout warn"><strong>“argv[0] is my first argument.”</strong> Off-by-one: yours start at index 2. Fix: log the whole array once (<code class="inline">console.log(process.argv)</code>) and count — zero node, one file, two mine.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Write <code class="inline">add-task.mjs</code>: takes a title (<code class="inline">argv[2]</code>) and an optional <code class="inline">--done</code> flag; prints exactly one line of JSON: <code class="inline">{"title":"…","done":true/false}</code> (use <code class="inline">JSON.stringify</code> — Lesson 0004 pays off).</li>
+<li>Run it three ways: no args (default title?), with title, with title + flag. Paste all three outputs.</li>
+<li>Run <code class="inline">node -e "console.log(typeof window)"</code> and explain the result in one sentence using the word “vehicle”.</li>
+</ol>
+<p><em>Done means:</em> one file + three outputs (valid JSON each) + one vehicle sentence. Send them to me and I'll confirm Module 2 lesson 2 (files + JSON persistence).</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="V8 runs the language in both; the runtime around it is what differs.">
+<p>1. What do browser and Node share?</p>
+<button data-key="a">DOM and window objects</button>
+<button data-key="b">V8 JavaScript engine core</button>
+<button data-key="c">Files and process access</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="argv[0] is node, argv[1] your file — yours start at index 2.">
+<p>2. Where do your args start?</p>
+<button data-key="a">argv zero every time</button>
+<button data-key="b">argv one every time</button>
+<button data-key="c">argv two every time</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="no DOM in Node — document was never parked in this vehicle.">
+<p>3. document in Node gives?</p>
+<button data-key="a">Undefined — no DOM here</button>
+<button data-key="b">Full page DOM tree</button>
+<button data-key="c">Server log file path</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="same file plus different words equals different output — input without editing.">
+<p>4. Why pass CLI arguments?</p>
+<button data-key="a">Make code run faster</button>
+<button data-key="b">Change output sans edits</button>
+<button data-key="c">Skip install step fully</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">You now drive the second vehicle: <strong>Node runs your JS with OS access; terminal words become argv from index 2; no DOM lives here</strong>. Next: files — your program learns to remember (JSON persistence, CLI TaskFlow v0).</div>
+
+<div class="callout">
+<strong>Primary source:</strong> <a href="https://nodejs.org/en/learn/getting-started/introduction-to-nodejs">Node.js — Introduction</a> (the official 5-minute tour).
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0005-module-1-checkpoint.html">← 0005 Checkpoint</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0007 (files + CLI TaskFlow v0) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: <code class="inline">const title = process.argv[2] ?? "untitled"; const done = process.argv.includes("--done"); console.log(JSON.stringify({title, done}));</code> Three outputs: no-args → <code class="inline">{"title":"untitled","done":false}</code>; title → its title false; +flag → true. Vehicle sentence: “window, like document, belongs to the browser vehicle, not Node's.”</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “Node is a language” — correct with chart 8 (language vs runtime).</p>
+</details>
+
+<footer><strong>Lesson 0006</strong> · Module 2 · Run JS outside the browser · Sources: <a href="https://nodejs.org/en/docs">Node docs</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

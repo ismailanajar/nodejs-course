@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0012 — The Program That Doesn't Exit</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Build your first Node.js HTTP server with node:http: listen, handlers, req and res, EADDRINUSE, and the two-terminal workflow.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0012-first-listening-server.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0012-first-listening-server.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0012 — The Program That Doesn't Exit">
+<meta property="og:description" content="Build your first Node.js HTTP server with node:http: listen, handlers, req and res, EADDRINUSE, and the two-terminal workflow.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0012 — The Program That Doesn't Exit">
+<meta name="twitter:description" content="Build your first Node.js HTTP server with node:http: listen, handlers, req and res, EADDRINUSE, and the two-terminal workflow.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0012 — The Program That Doesn't Exit", "description": "Build your first Node.js HTTP server with node:http: listen, handlers, req and res, EADDRINUSE, and the two-terminal workflow.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0011-module-2-checkpoint.html">← 0011</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0012</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 3 · SERVER FROM SCRATCH · LESSON 1</p>
+<h1>The program <span class="u-stroke">that waits</span></h1>
+<p class="subtitle">One sitting, one win: your code answers a knock on door 3000 — from a browser and from the terminal.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Module 2 gate</span><span>Objectives: listen · handler · first reply</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Every program you've written <em>exits</em>. A server is the opposite shape: it starts, opens a door, and waits — possibly forever — answering each knock with the same function. Today you build that shape in ~15 lines, no framework, no magic.</div>
+
+<h2>1 · The mental model: the receptionist</h2>
+<div class="mermaid">flowchart LR
+  subgraph CLI["CLI shape (Modules 1–2)"]
+    direction TB
+    C1["start → work"] --> C2["print → EXIT"]
+  end
+  subgraph SRV["SERVER shape (today)"]
+    direction TB
+    S1["start → open door"] --> S2["knock? → handler → reply"]
+    S2 --> S2
+  end
+</div>
+<p class="diagram-cap"><strong>Chart 29 — Two shapes.</strong> CLI is a line with an end; a server is a loop that only ends when you kill it (Ctrl+C).</p>
+<details><summary><strong>Source + the one word (click)</strong></summary>
+<p>The word is <strong>listen</strong>: one call (<code class="inline">server.listen(3000)</code>) registers your process behind door 3000. Lesson 0003's doors were theory — this is the hand turning the key. Source: <a href="https://nodejs.org/api/http.html">Node.js http docs</a>.</p>
+<pre>flowchart LR
+  C1["start → work"] --> C2["print → EXIT"]
+  S1["start → open door"] --> S2["knock → reply ↺"]</pre>
+</details>
+
+<h2>2 · Anatomy of one knock</h2>
+<div class="mermaid">sequenceDiagram
+  participant K as knock (browser/fetch)
+  participant D as door :3000
+  participant H as handler(req, res)
+  K->>D: TCP arrives
+  D->>H: built req { method, url } + empty res
+  H->>H: YOUR code decides
+  H->>K: res.writeHead + res.end(body)
+</div>
+<p class="diagram-cap"><strong>Chart 30 — One knock, four hops.</strong> Node builds the objects; you only write the middle hop (decide) and the last call (reply).</p>
+<details><summary><strong>Source + what Node gifts you (click)</strong></summary>
+<p>Gifted: parsing bytes into <code class="inline">req.method</code>/<code class="inline">req.url</code>, and a <code class="inline">res</code> that formats your answer back into bytes. Yours: read the two fields, pick status + body, call <code class="inline">res.end</code>. Forget <code class="inline">res.end</code> and the client hangs — the commonest first-day bug, with a one-line fix.</p>
+<pre>sequenceDiagram
+  participant K as knock
+  participant D as door
+  participant H as handler
+  ...</pre>
+</details>
+
+<h2>3 · The two-terminal habit</h2>
+<div class="mermaid">flowchart LR
+  T1["LEFT terminal<br/>node hello-server.mjs<br/>stays open, logs knocks"]
+  T2["RIGHT terminal / browser<br/>fetch or visit URL<br/>knocks, reads reply"]
+  T1 <-->|"knock ↔ reply<br/>localhost:3000"| T2
+</div>
+<p class="diagram-cap"><strong>Chart 31 — How backend devs sit.</strong> Server left (running, logging), client right (knocking). This split-screen is your desk until Module 8.</p>
+<details><summary><strong>Source + setup (click)</strong></summary>
+<p>Open two terminals (or terminal + browser) side by side now. Left runs the server and never returns to prompt; right sends knocks. Ctrl+C kills the left when done — and a killed server is just an exited program (chart 29, left shape).</p>
+<pre>flowchart LR
+  T1["server terminal"] <--> T2["client terminal"]</pre>
+</details>
+
+<h2>4 · Live demo: hello on door 3000 (8 min)</h2>
+<p>Create <code class="inline">hello-server.mjs</code> — built-in <code class="inline">node:http</code> only:</p>
+<pre>// file: hello-server.mjs
+import http from "node:http";
+
+const server = http.createServer((req, res) => {
+  console.log(`${req.method} ${req.url}`); // every knock, logged left
+  res.writeHead(200, { "content-type": "text/plain" });
+  res.end("hello from TaskFlow server\n");
+});
+
+server.listen(3000, () => {
+  console.log("listening on http://localhost:3000 (Ctrl+C to stop)");
+});</pre>
+<pre># LEFT terminal:
+node hello-server.mjs
+<span class="c"># expected: listening on http://localhost:3000 (Ctrl+C to stop) — prompt NOT back</span>
+# RIGHT terminal:
+node -e "console.log(await (await fetch('http://localhost:3000/')).text())"
+<span class="c"># expected: hello from TaskFlow server — and LEFT prints: GET /</span>
+# or open http://localhost:3000 in a browser — same knock, same reply</pre>
+<p>Now trigger the warned-about crash <strong>on purpose</strong> — start the server twice (second LEFT terminal or same after forgetting Ctrl+C):</p>
+<pre>node hello-server.mjs
+<span class="c"># expected: Error: listen EADDRINUSE: address already in use :::3000
+# translation: the door is taken — kill the first server (Ctrl+C), don't pick a new port</span></pre>
+<p>Why it works: <code class="inline">createServer</code> registers your handler; <code class="inline">listen</code> binds the door; each knock re-runs the same function with fresh objects. The crash is the OS refusing two receptionists at one desk.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>This file is the seed of the API: next lessons replace the fixed reply with <em>routing by method+url</em> (0013), JSON bodies (0014), then the tasks file behind it (0015) — hello-server grown into TaskFlow HTTP v1. Express (Module 4) will only sugar this exact shape.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Nothing happens / page spins.”</strong> You forgot <code class="inline">res.end(...)</code> — the client waits forever for an ending that never comes. Fix: every path through your handler must end exactly one response.</div>
+<div class="callout"><strong>“It worked, now EADDRINUSE.”</strong> Old server still holds the door (you closed the terminal, not the process). Fix: Ctrl+C the old one, or find + kill it — never “just use 3001” (that hides the corpse).</div>
+<div class="callout warn"><strong>“Edited code, nothing changed.”</strong> Node doesn't reload files — the running server is the <em>old</em> bytes. Fix: Ctrl+C + re-run after every edit (auto-reload comes with dev tools later; the manual loop builds the mental model).</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Change the reply to include the knock: <code class="inline">you knocked GET /hello</code> (template string from <code class="inline">req.method</code>/<code class="inline">req.url</code>); restart, knock twice (two different paths), paste LEFT log + RIGHT replies.</li>
+<li>Trigger EADDRINUSE deliberately, paste the first error line, then free the door and confirm the server restarts.</li>
+<li>One sentence: in chart-30 terms, which hop did <em>you</em> write, and which hops did Node gift?</li>
+</ol>
+<p><em>Done means:</em> dynamic reply + two logs + one pasted EADDRINUSE line + one hop sentence. Lesson 0013 (routing by hand) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="listen registers your process behind that numbered door.">
+<p>1. What does listen do?</p>
+<button data-key="a">Exits process right away</button>
+<button data-key="b">Binds door, starts waiting</button>
+<button data-key="c">Parses JSON bodies auto</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="no end means no ending — the client hangs until timeout.">
+<p>2. Forgot res.end — result?</p>
+<button data-key="a">Empty reply at once</button>
+<button data-key="b">Server crashes loudly now</button>
+<button data-key="c">Client hangs awaiting end</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="one door, one process — the second bind is refused.">
+<p>3. EADDRINUSE means what?</p>
+<button data-key="a">Door taken, kill older</button>
+<button data-key="b">JSON body was corrupt</button>
+<button data-key="c">Wrong path requested now</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="the running process holds old bytes — restart to load new code.">
+<p>4. Edited file, same reply?</p>
+<button data-key="a">Browser cached the page</button>
+<button data-key="b">Old bytes still running</button>
+<button data-key="c">Port changed by itself</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Your program waits now: <strong>listen binds the door, each knock re-runs your handler with fresh req/res, every path must end one response, one door means one process</strong>. Next: routing by hand — different method+url, different reply.</div>
+
+<div class="callout">
+<strong>Primary source:</strong> <a href="https://nodejs.org/api/http.html">Node.js — http module</a> (read createServer + listen + response.end).
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0011-module-2-checkpoint.html">← 0011 Checkpoint</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0013 (routing by hand: health, products, tasks) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: reply <code class="inline">res.end(`you knocked ${req.method} ${req.url}\n`)</code>; LEFT shows <code class="inline">GET /hello</code> + <code class="inline">GET /other</code>; RIGHT echoes both. EADDRINUSE first line pasted; freed via Ctrl+C on first server. Sentence: “I wrote decide + reply; Node gifted parse (req) + format/deliver.”</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “server = framework” — correct: 15 lines of built-ins, frameworks later.</p>
+</details>
+
+<footer><strong>Lesson 0012</strong> · Module 3 · First listening server · Source: <a href="https://nodejs.org/api/http.html">http docs</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

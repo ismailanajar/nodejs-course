@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0018 — Middleware: Layers You Control</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Express middleware layers: order is behavior, reply-or-next, request logger, 404 trapdoor, and one central JSON error lane.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0018-middleware-and-errors.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0018-middleware-and-errors.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0018 — Middleware: Layers You Control">
+<meta property="og:description" content="Express middleware layers: order is behavior, reply-or-next, request logger, 404 trapdoor, and one central JSON error lane.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0018 — Middleware: Layers You Control">
+<meta name="twitter:description" content="Express middleware layers: order is behavior, reply-or-next, request logger, 404 trapdoor, and one central JSON error lane.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0018 — Middleware: Layers You Control", "description": "Express middleware layers: order is behavior, reply-or-next, request logger, 404 trapdoor, and one central JSON error lane.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0017-express-hello.html">← 0017</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0018</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 4 · EXPRESS + REST · LESSON 2</p>
+<h1>Layers <span class="u-stroke">you control</span></h1>
+<p class="subtitle">One sitting, one win: every knock gets logged, bad JSON gets a JSON answer, and errors land in one place.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Lesson 0017 (Express hello)</span><span>Objectives: use/order · next · error lane</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Two embarrassments ship in 0017's app: corrupt JSON answers in <em>HTML</em> (a JSON API speaking prose), and every handler repeats its own try/catch. Both come from one missing idea: code that runs <em>around</em> handlers — before them, after them, and when they throw.</div>
+
+<h2>1 · The mental model: airport security</h2>
+<div class="mermaid">flowchart LR
+  K3["knock"] --> L1["layer 1: log<br/>stamp + pass on"]
+  L1 --> L2["layer 2: parse<br/>body → req.body"]
+  L2 --> R3["room: handler<br/>decide + reply"]
+  R3 --> E3["error lane<br/>only on throw"]
+</div>
+<p class="diagram-cap"><strong>Chart 50 — The conveyor.</strong> Every knock walks every layer in registration order; the error lane runs only when something throws. Order is behavior.</p>
+<details><summary><strong>Source + the next() contract (click)</strong></summary>
+<p>Contract: a layer either replies (journey ends) or calls <code class="inline">next()</code> (journey continues). Forget both and the knock hangs — lesson 0012's missing-<code class="inline">end</code>, wearing a suit. Error layers take four args <code class="inline">(err, req, res, next)</code>; Express spots the arity and routes throws there. Source: <a href="https://expressjs.com/en/guide/using-middleware.html">Express — middleware</a>, <a href="https://expressjs.com/en/guide/error-handling.html">error handling</a>.</p>
+<pre>flowchart LR
+  K3["knock"] --> L1["log"] --> L2["parse"] --> R3["handler"] --> E3["error lane"]</pre>
+</details>
+
+<h2>2 · The three residents of every API</h2>
+<div class="mermaid">flowchart TD
+  A2["app.use(logger)<br/>stamp method+url+ms"] --> B2["app.use(express.json())<br/>parcels → objects"]
+  B2 --> C2["routes...<br/>rooms decide"]
+  C2 --> D2["app.use(unknownRoom)<br/>404 JSON trapdoor"]
+  D2 --> F2["app.use((err,...) => ...)<br/>ONE error translator"]
+</div>
+<p class="diagram-cap"><strong>Chart 51 — Standard stack.</strong> Five lines, always this order: observe → parse → decide → catch-unknown → catch-broken. Memorize the order; it never changes.</p>
+<details><summary><strong>Source + placement law (click)</strong></summary>
+<p>Law: loggers first (see everything), parsers before rooms (rooms need bodies), 404 after rooms (only the unmatched fall through), error lane last (catches all throws including parser explosions — that's what fixes the HTML surprise).</p>
+<pre>flowchart TD
+  A2["logger"] --> B2["parser"] --> C2["rooms"] --> D2["404"] --> F2["errors"]</pre>
+</details>
+
+<h2>3 · The error translator (JSON for JSON crimes)</h2>
+<div class="mermaid">flowchart TD
+  TH["handler throws / parser rejects"] --> SIG{"4-arg signature?"}
+  SIG -- Yes --> TR["translate: status + { error }<br/>log full err server-side"]
+  SIG -- No --> HANG["skipped — falls to<br/>default HTML handler"]
+  TR --> CLI2["client gets JSON<br/>always, even for 500"]
+</div>
+<p class="diagram-cap"><strong>Chart 52 — One translator.</strong> Every failure in the building funnels to one function: log the truth privately, speak JSON publicly, never leak stacks.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>flowchart TD
+  TH["throw"] --> SIG{"4 args?"} --> TR["translate"] --> CLI2["JSON out"]</pre>
+</details>
+
+<h2>4 · Live demo: civilized app (10 min)</h2>
+<p>Upgrade <code class="inline">app.mjs</code> — three additions around the rooms (rooms unchanged):</p>
+<pre>// 1 — logger FIRST (sees everything, measures time):
+app.use((req, res, next) =&gt; {
+  const t = Date.now();
+  res.on("finish", () =&gt; console.log(`${req.method} ${req.url} → ${res.statusCode} (${Date.now() - t}ms)`));
+  next();
+});
+app.use(express.json());
+
+// ... rooms here (unchanged) ...
+
+// 2 — 404 trapdoor AFTER rooms:
+app.use((req, res) =&gt; res.status(404).json({ error: `no such room: ${req.method} ${req.url}` }));
+
+// 3 — error lane LAST (four args!):
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) =&gt; {
+  console.error(err); // private truth, server-side only
+  const status = err.status ?? err.statusCode ?? 500;
+  const message = status === 500 ? "something broke" : err.message || "bad request";
+  res.status(status).json({ error: message });
+});</pre>
+<pre>node app.mjs
+node -e "const r = await fetch('http://localhost:3000/tasks',{method:'POST',headers:{'content-type':'application/json'},body:'{oops'}); console.log(r.status, await r.json())"
+<span class="c"># expected: 400 { error: ...JSON... } — JSON crime, JSON answer. Surprise fixed.</span>
+node -e "const r = await fetch('http://localhost:3000/nope'); console.log(r.status, await r.json())"
+<span class="c"># expected: 404 { error: 'no such room: GET /nope' } — trapdoor speaks menu language</span></pre>
+<p>Why it works: the parser's throw lands in the error lane (status 400 rides along on the error object); unknown paths fall past rooms into the trapdoor; the logger's <code class="inline">finish</code> listener fires after the reply leaves — observation without interference.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Every future layer slots into chart 51 without moving residents: auth checks (Module 6) sit between parser and rooms; Zod validation (0019) lives inside rooms or as room-specific layers. The error lane is finished — it will barely change for the rest of the course.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Error lane never fires.”</strong> Three args <code class="inline">(err, req, res)</code> — Express reads it as a normal layer. Fix: four args exactly; the unused <code class="inline">next</code> is structural, keep it (hence the lint comment).</div>
+<div class="callout"><strong>“404 trapdoor eats real rooms.”</strong> Registered <em>before</em> the rooms. Fix: chart-51 order — trapdoor after rooms, error lane after trapdoor. Order is behavior.</div>
+<div class="callout warn"><strong>“Leaked stack to client.”</strong> Sent <code class="inline">err.stack</code> in the JSON for debuggability. Fix: stacks stay in server logs; clients get one sentence. Attackers read error output like documentation.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Install the three residents; knock corrupt-JSON + unknown-room + one healthy room; paste all three replies + the three log lines.</li>
+<li>Break the order once deliberately (trapdoor before rooms): knock a healthy room, paste the (wrong) reply, restore, one sentence on what order did.</li>
+<li>Add a header layer: every reply carries <code class="inline">x-app: taskflow</code> (set + <code class="inline">next()</code>); prove with one knock showing response headers.</li>
+</ol>
+<p><em>Done means:</em> three reply+log pastes + one order-lesson sentence + one header proof. Lesson 0019 (Zod validation) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="reply or next — silence hangs the knock forever.">
+<p>1. Layer must do what?</p>
+<button data-key="a">Return data upstream fast</button>
+<button data-key="b">Reply or call next</button>
+<button data-key="c">Throw on every knock</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="Express routes throws to four-arg functions only.">
+<p>2. Error lane arity?</p>
+<button data-key="a">One arg is enough</button>
+<button data-key="b">Two args does it</button>
+<button data-key="c">Four args exactly here</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="order is behavior — earlier layers see more, trapdoors must come last.">
+<p>3. Logger goes where?</p>
+<button data-key="a">First to see all</button>
+<button data-key="b">Last after error lane</button>
+<button data-key="c">Inside each handler body</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="log full truth privately; clients get one JSON sentence.">
+<p>4. 500 reply contains?</p>
+<button data-key="a">Full stack trace text</button>
+<button data-key="b">One calm sentence only</button>
+<button data-key="c">Empty body, close socket</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Layers tamed: <strong>reply-or-next, order-is-behavior, logger→parser→rooms→404→error-lane, JSON out for every failure</strong>. Next: Zod — hand-checks retire, schemas rule.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://expressjs.com/en/guide/using-middleware.html">Express — middleware</a> · <a href="https://expressjs.com/en/guide/error-handling.html">Express — errors</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0017-express-hello.html">← 0017 Express hello</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0019 (Zod validation) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: corrupt → <code class="inline">400</code> JSON + log line with 400; unknown → trapdoor 404; healthy → normal + log with ms. Misordered trapdoor answers 404 to healthy rooms — “order is behavior” sentence must mention fall-through. Header proof: <code class="inline">node -e "console.log((await fetch(url)).headers.get('x-app'))"</code> → taskflow.</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “middleware = routes” — correct: layers wrap rooms; rooms decide.</p>
+</details>
+
+<footer><strong>Lesson 0018</strong> · Module 4 · Middleware + errors · Sources: <a href="https://expressjs.com/en/guide/using-middleware.html">middleware</a>, <a href="https://expressjs.com/en/guide/error-handling.html">errors</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

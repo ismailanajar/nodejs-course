@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0002 — What a fetch() Really Sends (Request vs Response)</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Learn what fetch really sends: HTTP request vs response — method, path, headers, body, status — with live browser and Node.js demos.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0002-http-request-and-response.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0002-http-request-and-response.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0002 — What a fetch() Really Sends (Request vs Response)">
+<meta property="og:description" content="Learn what fetch really sends: HTTP request vs response — method, path, headers, body, status — with live browser and Node.js demos.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0002 — What a fetch() Really Sends (Request vs Response)">
+<meta name="twitter:description" content="Learn what fetch really sends: HTTP request vs response — method, path, headers, body, status — with live browser and Node.js demos.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0002 — What a fetch() Really Sends (Request vs Response)", "description": "Learn what fetch really sends: HTTP request vs response — method, path, headers, body, status — with live browser and Node.js demos.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0001-course-map.html">← 0001 Map</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0002</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 1 · HOW THE WEB WORKS · LESSON 1</p>
+<h1>What your <span class="u-stroke">fetch call</span> really sends</h1>
+<p class="subtitle">One sitting, one win: you read a real HTTP request and response line by line — nothing magic left.</p>
+<div class="meta">
+<span>⏱ 25–35 min</span><span>Prerequisites: fetch basics + Lesson 0001 map</span><span>Objectives: method · path · headers · body · status</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> You already write <code class="inline">fetch("/api/tasks")</code> — but when it breaks you stare at “failed to fetch” with no idea who is at fault: your URL, the server, or the network. Today that ends: every fetch is two plain-text messages, and you will read both.</div>
+
+<h2>1 · The mental model</h2>
+<p>Think restaurant: you hand the waiter an <strong>order slip</strong> (request: <em>what</em> + <em>which dish</em> + <em>notes</em>). The kitchen returns a <strong>tray</strong> (response: <em>did it work?</em> + <em>the food</em>). HTTP works exactly like that — two messages, always in this order:</p>
+
+<div class="mermaid">sequenceDiagram
+  participant B as Browser / fetch()
+  participant S as Server API
+  B->>S: REQUEST — method + path + headers + body
+  S->>S: validate, decide, fetch data
+  S->>B: RESPONSE — status + headers + body
+</div>
+<p class="diagram-cap"><strong>Diagram C — One HTTP round trip.</strong> Arrows are messages travelling over the network; time flows downward.</p>
+<details><summary><strong>How to read + walkthrough (click)</strong></summary>
+<p><em>How to read:</em> top to bottom = earlier to later. Solid arrows cross between programs. The middle line (server thinking) never leaves the server.</p>
+<p><em>Walkthrough:</em> ① your <code class="inline">fetch()</code> builds a request (say <code class="inline">GET /todos/1</code>) ② the server reads it, decides, maybe queries a database ③ it replies with a status (<code class="inline">200</code> = ok) plus a JSON body. If step ① is malformed, step ③ is a <code class="inline">4xx</code> — the kitchen rejecting a bad slip.</p>
+<p><em>Takeaway:</em> frontend and backend never share memory — only these two messages. Debugging = “which message is wrong?” Source: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP">MDN HTTP overview</a>.</p>
+<pre>sequenceDiagram
+  participant B as Browser / fetch()
+  participant S as Server API
+  B->>S: REQUEST — method + path + headers + body
+  S->>S: validate, decide, fetch data
+  S->>B: RESPONSE — status + headers + body</pre>
+</details>
+
+<h2>2 · Anatomy of the two messages</h2>
+<table>
+<tr><th>Part</th><th>Request (you send)</th><th>Response (you get)</th></tr>
+<tr><td><strong>Start line</strong></td><td><code class="inline">GET /todos/1 HTTP/1.1</code> — method + path</td><td><code class="inline">HTTP/1.1 200 OK</code> — status code + phrase</td></tr>
+<tr><td><strong>Headers</strong></td><td><code class="inline">Accept: application/json</code> — “I want JSON”</td><td><code class="inline">Content-Type: application/json</code> — “this IS JSON”</td></tr>
+<tr><td><strong>Body</strong></td><td>Empty on GET; JSON on POST/PUT/PATCH</td><td>The data — usually JSON for APIs</td></tr>
+</table>
+<p>Three vocabulary facts that pay off forever: <strong>method</strong> = the verb (<code class="inline">GET</code> read, <code class="inline">POST</code> create, <code class="inline">PUT/PATCH</code> update, <code class="inline">DELETE</code> remove — <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods">MDN methods</a>). <strong>Status</strong> = three digits grouped 2xx ok / 3xx redirect / 4xx your fault / 5xx server's fault (<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status">MDN status codes</a>). <strong>JSON</strong> = the text format both sides parse with <code class="inline">JSON.stringify / response.json()</code>.</p>
+
+<h2>3 · Live demo: see it with your own eyes (5 min)</h2>
+<p><strong>A — browser (no install).</strong> Open DevTools → Network tab, then run this in the console:</p>
+<pre>await fetch("https://jsonplaceholder.typicode.com/todos/1")
+  .then(async (r) => ({ status: r.status,
+    type: r.headers.get("content-type"), body: await r.json() }))
+<span class="c">// expected: { status: 200, type: "application/json; charset=utf-8",
+//   body: { userId: 1, id: 1, title: "delectus aut autem", completed: false } }</span></pre>
+<p>Click that request in the Network tab: the <em>Headers</em> panel is the two messages from §2, raw.</p>
+<p><strong>B — Node (same idea, terminal side).</strong> Create <code class="inline">request-demo.mjs</code> — Node 24 already has global <code class="inline">fetch</code>, zero dependencies:</p>
+<pre>// file: request-demo.mjs
+const res = await fetch("https://jsonplaceholder.typicode.com/todos/1");
+console.log("status:", res.status);
+console.log("content-type:", res.headers.get("content-type"));
+console.log("body:", await res.json());</pre>
+<pre>node request-demo.mjs
+<span class="c"># expected:
+# status: 200
+# content-type: application/json; charset=utf-8
+# body: { userId: 1, id: 1, title: 'delectus aut autem', completed: false }</span></pre>
+<p>Why it works: both demos send the identical request message and print the identical response message — browser or Node, the HTTP is the same. That is the whole Module 1 promise.</p>
+
+<h2>4 · How this fits TaskFlow</h2>
+<p>Every TaskFlow feature is one row in this table. “Show my tasks” = <code class="inline">GET /tasks → 200 + JSON list</code>. “Add a task” = <code class="inline">POST /tasks</code> with a JSON body → <code class="inline">201 Created</code>. Module 3 will make you hand-build these messages; Module 4 gives you Express shortcuts. Today's job is only: <em>recognize them on sight</em>.</p>
+
+<h2>5 · Common mistakes</h2>
+<div class="callout"><strong>“fetch threw on 404.”</strong> No — <code class="inline">fetch()</code> only throws on network failure. A 404 still resolves; you must check <code class="inline">res.status</code>/<code class="inline">res.ok</code> yourself. Fix: always branch on status before <code class="inline">res.json()</code>.</div>
+<div class="callout"><strong>“Path vs query mixed up.”</strong> <code class="inline">/tasks/7</code> = one specific task (route param); <code class="inline">/tasks?done=false</code> = filtered list (query). Fix: params identify, queries filter — Module 4 drills this.</div>
+<div class="callout warn"><strong>“Sent JSON but server says 400/415.”</strong> You forgot <code class="inline">Content-Type: application/json</code> or sent a raw object instead of <code class="inline">JSON.stringify(obj)</code>. Fix: set the header and stringify — the server can't guess your format.</div>
+
+<h2>6 · Practice exercise</h2>
+<ol class="steps">
+<li>Run demo A above, open the request in DevTools Network tab.</li>
+<li>Write down: method + full path, status code (+ its group), 3 request headers, 3 response headers, body keys.</li>
+<li>Change the URL to <code class="inline">.../todos/999999</code>, re-run, note what status + body you get and which “fault group” it belongs to.</li>
+</ol>
+<p><em>Done means:</em> a sheet with both cases filled in, and one sentence saying which message (request or response) you would blame for each case.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="the method is the verb — GET reads, POST creates, DELETE removes.">
+<p>1. What does the HTTP method express?</p>
+<button data-key="a">Which server hosts data</button>
+<button data-key="b">What action is desired</button>
+<button data-key="c">What color themes apply</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="fetch resolves on 404 — only a network failure rejects. You must check res.ok.">
+<p>2. <code class="inline">fetch()</code> gets a 404 — what happens?</p>
+<button data-key="a">It throws at once loudly</button>
+<button data-key="b">It retries until it succeeds</button>
+<button data-key="c">It resolves; check res.ok</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="2xx means success, 4xx means the request was at fault, 5xx the server.">
+<p>3. What does status 200 signal?</p>
+<button data-key="a">Request worked just fine</button>
+<button data-key="b">Server crashed very badly</button>
+<button data-key="c">Client must retry faster</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="headers are the metadata lines — content type, auth, caching. The body carries data.">
+<p>4. Where does Content-Type live?</p>
+<button data-key="a">Inside response body text</button>
+<button data-key="b">Among headers both ways</button>
+<button data-key="c">Within URL query string</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>7 · Summary</h2>
+<div class="callout why">You now read HTTP: <strong>request = method + path + headers + body</strong>, <strong>response = status + headers + body</strong>. Debug by asking “which message is wrong?” Next lesson: URLs, localhost, and ports — the addressing that gets the request to the right server door.</div>
+
+<div class="callout">
+<strong>Primary source:</strong> <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP">MDN — HTTP overview</a> (re-read the “Requests” + “Responses” sections, 10 min).
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0001-course-map.html">← 0001 Course map</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0003 (URLs, localhost, ports) drops next — the glossary holds today's terms meanwhile.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: case 1 → GET, 200 (2xx success), req headers include Accept / User-Agent / Host, res headers include Content-Type / Cache-Control / ETag-ish, body keys userId/id/title/completed. Case 2 → 404 (4xx client fault — unknown id), body {} (empty object). Blame: case 1 nothing; case 2 the request (bad id), not the network.</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “status 200 means fetch throws nothing” confusion — reinforce fetch resolves on every HTTP status.</p>
+</details>
+
+<footer><strong>Lesson 0002</strong> · Module 1 · Request vs response · Sources: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP">MDN HTTP</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods">methods</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status">status</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

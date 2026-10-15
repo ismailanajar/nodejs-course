@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0005 — Module 1 Checkpoint: Draw It From Memory</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Module 1 checkpoint: redraw the HTTP request lifecycle from memory, triage failures, write contracts — 7 Mermaid charts, self-graded gate.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0005-module-1-checkpoint.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0005-module-1-checkpoint.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0005 — Module 1 Checkpoint: Draw It From Memory">
+<meta property="og:description" content="Module 1 checkpoint: redraw the HTTP request lifecycle from memory, triage failures, write contracts — 7 Mermaid charts, self-graded gate.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0005 — Module 1 Checkpoint: Draw It From Memory">
+<meta name="twitter:description" content="Module 1 checkpoint: redraw the HTTP request lifecycle from memory, triage failures, write contracts — 7 Mermaid charts, self-graded gate.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0005 — Module 1 Checkpoint: Draw It From Memory", "description": "Module 1 checkpoint: redraw the HTTP request lifecycle from memory, triage failures, write contracts — 7 Mermaid charts, self-graded gate.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0004-json-and-api-contracts.html">← 0004</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Checkpoint</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 1 · CHECKPOINT · EARN THE GLOSSARY</p>
+<h1>Draw the web <span class="u-stroke">from memory</span></h1>
+<p class="subtitle">One sitting, one win: you reproduce the full request lifecycle with no peeking — and prove Module 1 is yours.</p>
+<div class="meta">
+<span>⏱ 40–50 min</span><span>Prerequisites: Lessons 0002–0004</span><span>Objectives: retrieve · triage · contract from memory</span>
+</div>
+</header>
+
+<div class="callout why"><strong>Why a checkpoint looks different.</strong> Re-reading feels like mastery but evaporates tomorrow (fluency ≠ storage). So this lesson flips the work: <em>you</em> draw first, then compare against the seven charts below. Struggle is the mechanism — each failed recall you repair now is one you won't repeat in Module 3.</div>
+
+<h2>0 · Your Module 1 journey on one chart</h2>
+<div class="mermaid">journey
+  title Module 1 — what you climbed
+  section 0002 Messages
+    Tell request from response: 5: You
+    Check res.ok yourself: 4: You
+  section 0003 Addresses
+    Split any URL in five: 4: You
+    Read ECONNREFUSED calmly: 3: You
+  section 0004 Contracts
+    Spot bad JSON instantly: 4: You
+    Write a POST contract: 3: You
+  section 0005 Today
+    Draw it all blank-page: 5: You
+</div>
+<p class="diagram-cap"><strong>Chart 1 — Journey.</strong> Numbers are effort ratings, not grades — 5 means “hardest win”, and today's blank-page redraw earns it.</p>
+<details><summary><strong>Source + how to use (click)</strong></summary>
+<p>Read left to right: each section is one lesson, each task one skill. If any task below 4 feels shaky, re-open that lesson <em>before</em> the exercises — checkpoints test, lessons teach.</p>
+<pre>journey
+  title Module 1 — what you climbed
+  section 0002 Messages
+    Tell request from response: 5: You
+    ...</pre>
+</details>
+
+<h2>1 · Cover-and-draw #1: the full lifecycle</h2>
+<p><strong>Close this page (seriously).</strong> On blank paper, draw every step from <code class="inline">fetch</code> call to resolved value, including host/port routing and the <code class="inline">.ok</code> check. Then uncover and diff against the reference:</p>
+<div class="mermaid">sequenceDiagram
+  participant U as You (code)
+  participant B as Browser / Node fetch
+  participant N as Network (host + port)
+  participant S as Server handler
+  U->>B: fetch(url, options)
+  B->>B: build REQUEST text
+  B->>N: send to host:port
+  N->>S: deliver to the right door
+  S->>S: route path + validate + logic
+  S->>N: RESPONSE text (status + JSON)
+  N->>B: deliver reply
+  B->>U: resolve res — YOU check .ok
+</div>
+<p class="diagram-cap"><strong>Chart 2 — Full lifecycle sequence.</strong> Time flows down; boxes are programs, arrows are messages.</p>
+<details><summary><strong>Source + grading yourself (click)</strong></summary>
+<p>Full marks = 8 arrows in order + the words host, port, path, status, <code class="inline">.ok</code> all present. Half marks = right order, missing labels. Any missing middle step (routing, validation) = re-read Lesson 0002 §1.</p>
+<pre>sequenceDiagram
+  participant U as You (code)
+  participant B as Browser / Node fetch
+  participant N as Network (host + port)
+  participant S as Server handler
+  U->>B: fetch(url, options)
+  ...</pre>
+</details>
+
+<h2>2 · Cover-and-draw #2: message anatomy</h2>
+<p>Same game: two columns, three rows each (start line, headers, body) — then compare:</p>
+<div class="mermaid">flowchart LR
+  subgraph REQ["REQUEST — you send"]
+    direction TB
+    M["start: method + path<br/>GET /tasks/7"]
+    H1["headers<br/>Accept: application/json"]
+    B1["body<br/>empty, or JSON text"]
+  end
+  subgraph RES["RESPONSE — you get"]
+    direction TB
+    S["start: status<br/>200 OK"]
+    H2["headers<br/>Content-Type: application/json"]
+    B2["body<br/>JSON data"]
+  end
+  B1 -->|"server decides"| S
+</div>
+<p class="diagram-cap"><strong>Chart 3 — Anatomy side-by-side.</strong> Left column asks, right column answers; the arrow is the server's brain.</p>
+<details><summary><strong>Source + grading (click)</strong></summary>
+<p>Full marks = all six cells + one real example per cell. Typical miss: headers row (people write “headers???”) — that's your cue to re-read 0002 §2.</p>
+<pre>flowchart LR
+  subgraph REQ["REQUEST — you send"]
+    ...
+  end
+  subgraph RES["RESPONSE — you get"]
+    ...
+  end
+  B1 -->|"server decides"| S</pre>
+</details>
+
+<h2>3 · The failure triage chart (tape this to your wall)</h2>
+<p>You will use this weekly until Module 8. Read it top-down every time something breaks:</p>
+<div class="mermaid">flowchart TD
+  E["Request failed?!"] --> Q1{"Did a<br/>response arrive?"}
+  Q1 -- No --> N["NO REPLY — host/port/network<br/>ECONNREFUSED = shut door · DNS = no building"]
+  Q1 -- Yes --> Q2{"Which<br/>status group?"}
+  Q2 -- 2xx --> OK["Success — read the body"]
+  Q2 -- 4xx --> C["YOUR request is wrong<br/>diff path + body vs contract"]
+  Q2 -- 5xx --> SV["SERVER broke<br/>check its logs, retry later"]
+</div>
+<p class="diagram-cap"><strong>Chart 4 — Triage decision tree.</strong> Diamonds are questions, rectangles are verdicts. First question first — never debug a body before confirming a reply exists.</p>
+<details><summary><strong>Source + walkthrough (click)</strong></summary>
+<p>Two real runs: (a) port 9999 → no reply → shut door → start server / fix port. (b) <code class="inline">404</code> on <code class="inline">/tasks/7</code> → reply arrived → 4xx → your path is wrong, network is innocent. The chart's only job is stopping you from blaming the wrong layer.</p>
+<pre>flowchart TD
+  E["Request failed?!"] --> Q1{"Did a response arrive?"}
+  ...</pre>
+</details>
+
+<h2>4 · Dev vs production, one picture</h2>
+<div class="mermaid">flowchart LR
+  subgraph DEV["DEV — your laptop"]
+    direction TB
+    F1["Frontend :5173<br/>Vite, sloppy + fast"]
+    A1["API :3000 http<br/>stack traces welcome"]
+    F1 --> A1
+  end
+  subgraph PROD["PROD — rented machine"]
+    direction TB
+    F2["Frontend :443 https<br/>built files"]
+    A2["API :443 https<br/>logs, env secrets"]
+    F2 --> A2
+  end
+  DEV -.->|"same code, stricter discipline<br/>(Module 8)"| PROD
+</div>
+<p class="diagram-cap"><strong>Chart 5 — Two worlds.</strong> Boxes are doors; the dotted arrow is deployment — code travels, discipline tightens.</p>
+<details><summary><strong>Source + what to memorize (click)</strong></summary>
+<p>Three contrasts only: ports (named doors vs 443), protocol (<code class="inline">http</code> vs <code class="inline">https</code>), errors (console peeking vs logs + env vars). Everything else in Module 8 is detail hung on these three hooks.</p>
+<pre>flowchart LR
+  subgraph DEV["DEV — your laptop"]
+  ...
+  end
+  ...</pre>
+</details>
+
+<h2>5 · TaskFlow v1 contract map</h2>
+<div class="mermaid">flowchart TD
+  L["GET /tasks"] --> L1["200 + list of { id, title, done }"]
+  P["POST /tasks + { title }"] --> P1["201 + created task"]
+  G["GET /tasks/:id"] --> G1["200 + item · or 404"]
+  P1 -.->|"later: Zod rejects off-menu"| E400["400 + error object"]
+</div>
+<p class="diagram-cap"><strong>Chart 6 — The menu Module 4 will cook.</strong> Solid arrows are v1; the dotted one previews validation (Modules 4–6).</p>
+<details><summary><strong>Source + exercise link (click)</strong></summary>
+<p>Exercise §7 asks you to rewrite this chart from memory <em>with example bodies</em>. If you can, the contract habit is installed; if the <code class="inline">201</code> slips your mind, re-read 0004 §2.</p>
+<pre>flowchart TD
+  L["GET /tasks"] --> L1["200 + list ..."]
+  ...</pre>
+</details>
+
+<h2>6 · Where beginners actually lose time</h2>
+<div class="mermaid">pie title Where beginner hours go (illustrative, not data)
+  "Contract drift (wrong keys)" : 40
+  "Addressing (host/port)" : 30
+  "Unchecked statuses" : 20
+  "Real network issues" : 10
+</div>
+<p class="diagram-cap"><strong>Chart 7 — Illustrative split.</strong> Not measured data — a teaching sketch: ~7 of every 10 stuck-hours live in charts 3 and 6 above, which is why this checkpoint drills exactly those.</p>
+
+<h2>7 · Retrieval exercises (blank page, then check)</h2>
+<ol class="steps">
+<li><strong>Lifecycle redraw</strong> — chart 2 from memory, 8 arrows + 5 labels (§1 rubric).</li>
+<li><strong>Triage ×3</strong> — verdict + blame layer for: (a) <code class="inline">ECONNREFUSED :3000</code>, (b) <code class="inline">404</code> on <code class="inline">/tasks/7</code>, (c) blank screen, status <code class="inline">200</code>, body <code class="inline">{name:…}</code> while UI reads <code class="inline">title</code>.</li>
+<li><strong>Contract rewrite</strong> — chart 6 from memory with one example request and one example reply per endpoint.</li>
+<li><strong>URL dissect</strong> — five parts of <code class="inline">https://api.taskflow.app/projects?page=2#top</code>, plus which part never reaches the server.</li>
+</ol>
+<p><em>Done means:</em> four sheets, self-graded against the charts above, every miss re-read at its lesson. When all four pass, Module 2 is unlocked.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="the contract turns blank screens into a seconds-long diff against the menu.">
+<p>1. Why sign a contract first?</p>
+<button data-key="a">Write less code daily</button>
+<button data-key="b">Catch drift in seconds</button>
+<button data-key="c">Skip testing entirely now</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="refused means the machine answered but nobody listens behind that door.">
+<p>2. Refused on port 3000 means?</p>
+<button data-key="a">Server door shut tight</button>
+<button data-key="b">JSON shape drifted apart</button>
+<button data-key="c">DNS lookup failed badly</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="a reply arrived, group 4xx: the request itself (here the id) is wrong.">
+<p>3. 404 on /tasks/7 means?</p>
+<button data-key="a">Port closed on server</button>
+<button data-key="b">Fragment blocked the way</button>
+<button data-key="c">Unknown id in path</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="the fragment never leaves the browser — the server never sees it.">
+<p>4. Which part never gets sent?</p>
+<button data-key="a">Stays inside the browser</button>
+<button data-key="b">Identifies the database row</button>
+<button data-key="c">Filters the tasks list</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="201 Created is the menu's word for a new thing now existing.">
+<p>4b. Creation succeeded — status?</p>
+<button data-key="a">200 OK always works</button>
+<button data-key="b">201 Created new item</button>
+<button data-key="c">404 Missing unknown item</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary + gate to Module 2</h2>
+<div class="callout why">Module 1 is yours when: <strong>you draw the lifecycle blank-page, triage any failure to its layer, dissect any URL, and write the tasks contract with statuses</strong>. Next: Module 2 — Node fundamentals, where your machine stops being a browser accessory and becomes the server itself.</div>
+
+<div class="callout">
+<strong>Primary sources (re-read only your misses):</strong> <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP">MDN HTTP</a> · <a href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Howto/Web_mechanics/What_is_a_URL">MDN URL</a> · <a href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Scripting/JSON">MDN JSON</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0004-json-and-api-contracts.html">← 0004 Contracts</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Module 2 (Node fundamentals) starts at 0006 — CLI TaskFlow v0.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Ex2: (a) no-reply → shut door → start server/fix port. (b) 4xx → wrong id in path, network innocent. (c) 200 + wrong keys → contract drift, backend (or stale frontend) guilty — diff body vs menu. Ex4: https / api.taskflow.app / (443 default) / /projects / ?page=2; #top unsent.</p>
+<p>Quiz: 1b, 2a, 3c, 4a, 4b→b. Gate rule: ≥4/5 quiz + all four sheets attempted = Module 2 unlocked; else re-do the missed lesson's exercise first.</p>
+</details>
+
+<footer><strong>Checkpoint 0005</strong> · Module 1 gate · 7 charts · Sources: MDN HTTP/URL/JSON · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

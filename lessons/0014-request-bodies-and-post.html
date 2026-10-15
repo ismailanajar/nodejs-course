@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0014 — Bodies: Knocks That Carry Things</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="HTTP request bodies from scratch: chunk streams, parse-at-end, precise 400 validation, and POST /tasks with 201 Created.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0014-request-bodies-and-post.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0014-request-bodies-and-post.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0014 — Bodies: Knocks That Carry Things">
+<meta property="og:description" content="HTTP request bodies from scratch: chunk streams, parse-at-end, precise 400 validation, and POST /tasks with 201 Created.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0014 — Bodies: Knocks That Carry Things">
+<meta name="twitter:description" content="HTTP request bodies from scratch: chunk streams, parse-at-end, precise 400 validation, and POST /tasks with 201 Created.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0014 — Bodies: Knocks That Carry Things", "description": "HTTP request bodies from scratch: chunk streams, parse-at-end, precise 400 validation, and POST /tasks with 201 Created.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0013-routing-by-hand.html">← 0013</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0014</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 3 · SERVER FROM SCRATCH · LESSON 3</p>
+<h1>Knocks that <span class="u-stroke">carry things</span></h1>
+<p class="subtitle">One sitting, one win: your server reads JSON bodies, validates them, and creates tasks with 201.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Lesson 0013 (guard routing)</span><span>Objectives: stream · parse-or-400 · POST</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> GET rooms only <em>show</em> things — the building accepts no deliveries. Creation means the knock carries a parcel (a JSON body), and parcels can be empty, corrupt, or nonsense. Today: receive, inspect, accept (<code class="inline">201</code>) or refuse (<code class="inline">400</code>) — with reasons.</div>
+
+<h2>1 · The mental model: parcels arrive in pieces</h2>
+<div class="mermaid">flowchart LR
+  S2["sender<br/>stringify + send"]
+  P["pieces (chunks)<br/>arrive over time"]
+  B["bucket<br/>collect every piece"]
+  O["whole text<br/>parse once, at end"]
+  S2 --> P --> B --> O
+</div>
+<p class="diagram-cap"><strong>Chart 35 — Body delivery.</strong> Unlike the URL (whole, instant), a body streams in pieces — you collect first, parse last.</p>
+<details><summary><strong>Source + rule (click)</strong></summary>
+<p>Rule: listen for <code class="inline">data</code> (append each chunk) and <code class="inline">end</code> (now parse). Parsing a half-arrived body is the classic crash — patience is structural, not stylistic. GET usually has no body; POST/PUT/PATCH do.</p>
+<pre>flowchart LR
+  S2["sender"] --> P["chunks"] --> B["collect"] --> O["parse at end"]</pre>
+</details>
+
+<h2>2 · Parse-or-400: the only honest shape</h2>
+<div class="mermaid">flowchart TD
+  E2["body text ready"] --> J{"JSON.parse?"}
+  J -- ok --> V{"shape valid?<br/>title = non-empty string"}
+  V -- yes --> C["201 + created task"]
+  V -- no --> B400["400 + what exactly<br/>is wrong"]
+  J -- throws --> B401["400 + not-JSON<br/>message"]
+</div>
+<p class="diagram-cap"><strong>Chart 36 — Receive or refuse.</strong> Three exits, all legitimate answers. A <code class="inline">400</code> names the fault precisely — it's customer service, not punishment.</p>
+<details><summary><strong>Source + validation seed (click)</strong></summary>
+<p>This diamond is baby Zod (Module 4): check presence, type, and sense — title must exist, be a string, not be blank. Hand-written today, one-liner library tomorrow; the <em>questions</em> never change, only the handwriting.</p>
+<pre>flowchart TD
+  E2["text"] --> J{"parse?"} --> V{"shape?"} --> C["201"]/B400["400"]</pre>
+</details>
+
+<h2>3 · POST flow end to end</h2>
+<div class="mermaid">sequenceDiagram
+  participant C as client
+  participant H as POST /tasks
+  participant M as memory array
+  C->>H: chunks (JSON text)
+  H->>H: collect → parse → validate
+  H->>M: push new task
+  H->>C: 201 + created task
+</div>
+<p class="diagram-cap"><strong>Chart 37 — Creation sequence.</strong> New hop vs GET: the push. Memory still forgets on restart — 0015 fixes that.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>sequenceDiagram
+  participant C as client
+  participant H as POST /tasks
+  participant M as memory
+  ...</pre>
+</details>
+
+<h2>4 · Live demo: the receiving room (10 min)</h2>
+<p>Add to <code class="inline">server.mjs</code> — a collector helper plus the POST branch (place before the 404 trapdoor):</p>
+<pre>// helper: collect the whole body text
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let text = "";
+    req.on("data", (chunk) =&gt; {
+      text += chunk;
+      if (text.length &gt; 1_000_000) reject(new Error("too large")); // 1MB sanity cap
+    });
+    req.on("end", () =&gt; resolve(text));
+    req.on("error", reject);
+  });
+}
+
+// branch (inside createServer, before the 404 line):
+if (req.method === "POST" &amp;&amp; pathname === "/tasks") {
+  let body;
+  try {
+    body = JSON.parse(await readBody(req));
+  } catch {
+    return send(res, 400, { error: "body must be valid JSON" });
+  }
+  if (typeof body?.title !== "string" || !body.title.trim()) {
+    return send(res, 400, { error: "title is required (non-empty string)" });
+  }
+  const task = { id: `t${Date.now()}`, title: body.title.trim(), done: false };
+  tasks.push(task);
+  return send(res, 201, task);
+}</pre>
+<pre># server running in LEFT terminal (restart it first!):
+node -e "console.log(await (await fetch('http://localhost:3000/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:'Learn bodies'})})).status)"
+<span class="c"># expected: 201 — LEFT logs: POST /tasks</span>
+node -e "const r = await fetch('http://localhost:3000/tasks',{method:'POST',headers:{'content-type':'application/json'},body:'{oops'}); console.log(r.status, await r.json())"
+<span class="c"># expected: 400 { error: 'body must be valid JSON' }</span>
+node -e "const r = await fetch('http://localhost:3000/tasks',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}); console.log(r.status, await r.json())"
+<span class="c"># expected: 400 { error: 'title is required (non-empty string)' }</span></pre>
+<p>Why it works: the handler is already <code class="inline">async</code>-friendly (Node awaits the returned promise before moving on — one breath per knock, chart 21). The 1MB cap stops one giant parcel from eating memory — your first denial-of-service instinct.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Creation exists — the menu's second line is live. 0015 persists it (restart-proof), then PUT/DELETE complete the set and the checkpoint gates Module 4, where Zod replaces the hand-checks and Express replaces the guard diamond.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“await readBody hangs forever.”</strong> Client sent no body and never ended? With <code class="inline">fetch</code> + method POST this rarely happens — but testing with a bare socket can. Fix: always send a body (even <code class="inline">'{}'</code>) when knocking POST in tests.</div>
+<div class="callout"><strong>“Validates after pushing.”</strong> Junk already stored, error after the fact. Fix: chart 36 order is law — parse → validate → push. Nothing touches the array before both gates pass.</div>
+<div class="callout warn"><strong>“No size cap.”</strong> A 2GB body becomes a 2GB string and your server falls over. Fix: the 1MB reject above — crude, effective, and the reason frameworks set body limits by default.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Add the POST branch; knock all three demo cases; paste statuses + bodies.</li>
+<li>Break it once more: send a JSON <em>array</em> (<code class="inline">[1,2]</code>) — paste what your server answers, then tighten validation to reject non-objects with a <code class="inline">400</code> naming the fault.</li>
+<li>Restart the server and <code class="inline">GET /tasks</code> — paste the list. Explain the amnesia in one sentence (preview of 0015).</li>
+</ol>
+<p><em>Done means:</em> three demo pastes + array-rejection paste + amnesia sentence. Lesson 0015 (file behind HTTP) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="chunks stream in — collect on data, parse once on end.">
+<p>1. When do you parse?</p>
+<button data-key="a">On first chunk arrival</button>
+<button data-key="b">Once at end event</button>
+<button data-key="c">Never, trust raw text</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="201 means a new thing now exists — the menu's creation word.">
+<p>2. Created — which status?</p>
+<button data-key="a">200 OK always fine</button>
+<button data-key="b">404 Missing unknown item</button>
+<button data-key="c">201 Created new item</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="parse, validate, then push — the array never sees unvetted junk.">
+<p>3. Push order is?</p>
+<button data-key="a">Parse check then push</button>
+<button data-key="b">Push then check later</button>
+<button data-key="c">Push twice for safety</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="one giant string can sink the process — cap it early.">
+<p>4. Why cap body size?</p>
+<button data-key="a">Speed up JSON output</button>
+<button data-key="b">Starve giant parcels early</button>
+<button data-key="c">Please the linter gods</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">You receive now: <strong>collect chunks → parse at end → validate shape → 201 or a precise 400, push only past both gates</strong>. Next: persistence behind HTTP — memory stops forgetting.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://nodejs.org/api/http.html">Node.js — http</a> (message, request events) · <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods/POST">MDN — POST</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0013-routing-by-hand.html">← 0013 Routing</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0015 (file behind HTTP: PUT, DELETE, persistence) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: array body → first version answers <code class="inline">400 title required</code> (acceptable) or crashes on <code class="inline">.trim</code> of undefined — tightened check: <code class="inline">if (!body || typeof body !== "object" || Array.isArray(body)) return send(res, 400, { error: "body must be an object" });</code> before the title check. Amnesia sentence: “tasks live in a variable, and variables die with the process (chart 11).”</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “validate later, it's faster” — correct with a junk-in-list demo.</p>
+</details>
+
+<footer><strong>Lesson 0014</strong> · Module 3 · Bodies + POST · Sources: <a href="https://nodejs.org/api/http.html">http</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods/POST">POST</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0021 — Module 4 Checkpoint: Gate to Databases</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Module 4 checkpoint: trace dressed Express knocks blind, recite the middleware stack — the gate to databases.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0021-module-4-checkpoint.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0021-module-4-checkpoint.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0021 — Module 4 Checkpoint: Gate to Databases">
+<meta property="og:description" content="Module 4 checkpoint: trace dressed Express knocks blind, recite the middleware stack — the gate to databases.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0021 — Module 4 Checkpoint: Gate to Databases">
+<meta name="twitter:description" content="Module 4 checkpoint: trace dressed Express knocks blind, recite the middleware stack — the gate to databases.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0021 — Module 4 Checkpoint: Gate to Databases", "description": "Module 4 checkpoint: trace dressed Express knocks blind, recite the middleware stack — the gate to databases.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0020-structure-and-paging.html">← 0020</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Checkpoint</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 4 · CHECKPOINT · GATE TO DATABASES</p>
+<h1>Framework <span class="u-stroke">without magic</span></h1>
+<p class="subtitle">One sitting, one win: you trace any knock through every layer blind — and name what each layer earns.</p>
+<div class="meta">
+<span>⏱ 40–50 min</span><span>Prerequisites: Lessons 0017–0020</span><span>Objectives: retrieve · triage · gate</span>
+</div>
+</header>
+
+<div class="callout why"><strong>Same deal:</strong> draw first, compare second. Module 5 swaps the storage engine — this checkpoint proves everything above it is engine-agnostic and therefore ready.</div>
+
+<h2>0 · Your Module 4 journey on one chart</h2>
+<div class="mermaid">journey
+  title Module 4 — what you hired
+  section 0017 Declare
+    Rooms as one-liners: 4: You
+    Read dressed req: 4: You
+  section 0018 Layer
+    Order the five residents: 5: You
+    Translate errors to JSON: 4: You
+  section 0019 Judge
+    Photos per entrance: 4: You
+    Name faults in 400s: 4: You
+  section 0020 Split
+    Three homes, one rule: 5: You
+    Page honest envelopes: 3: You
+  section 0021 Today
+    Trace it all blind: 5: You
+</div>
+<p class="diagram-cap"><strong>Chart 59 — Journey.</strong> Shaky task → re-open its lesson before exercises.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>journey
+  title Module 4 — what you hired
+  ...</pre>
+</details>
+
+<h2>1 · Cover-and-draw #1: dressed-knock trace</h2>
+<p><strong>Blank page.</strong> Trace <code class="inline">POST /tasks</code> with a bad title through every layer to the 400, naming who adds what. Then diff:</p>
+<div class="mermaid">sequenceDiagram
+  participant K as knock
+  participant L as logger+parser
+  participant R as router+Zod room
+  participant S as service+file
+  participant E as error lane
+  K->>L: raw bytes
+  L->>L: log + req.body
+  L->>R: dressed req
+  R->>R: safeParse FAILS → 400+issues
+  R->>K: 400 (valid path ends here)
+  Note over R,E: happy path continues: service → file → 201; throws → E → JSON
+</div>
+<p class="diagram-cap"><strong>Chart 60 — Full dressed trace.</strong> Both endings on one chart: judge-stops vs happy-continues vs lane-catches.</p>
+<details><summary><strong>Source + grading (click)</strong></summary>
+<p>Full marks = 5 actors + both endings (400-stop AND 201-continue) + error-lane branch. Missing “valid path ends at room” (no service/file touch on 400) loses half.</p>
+<pre>sequenceDiagram
+  participant K as knock
+  ...
+  R->>K: 400 (stops) / service → 201</pre>
+</details>
+
+<h2>2 · Cover-and-draw #2: stack order</h2>
+<div class="mermaid">flowchart TD
+  S1["1 logger (observe)"] --> S2["2 express.json (parse)"]
+  S2 --> S3["3 rooms (decide)"]
+  S3 --> S4["4 404 trapdoor (unmatched)"]
+  S4 --> S5["5 error lane (throws)"]
+</div>
+<p class="diagram-cap"><strong>Chart 61 — Stack order, five lines.</strong> The single most-recited chart of the course — tattoo-adjacent.</p>
+<details><summary><strong>Source + grading (click)</strong></summary>
+<p>Full marks = all five in order with one-word jobs (observe/parse/decide/unmatched/throws). Any swap = re-read 0018 §2.</p>
+<pre>flowchart TD
+  S1["logger"] --> S2["parser"] --> S3["rooms"] --> S4["404"] --> S5["errors"]</pre>
+</details>
+
+<h2>3 · Structure map + list math, pocket versions</h2>
+<div class="mermaid">flowchart LR
+  K5["knock"] --> RT2["routes: HTTP"]
+  RT2 --> SV4["services: logic"]
+  SV4 --> DB5["storage: bytes"]
+</div>
+<p class="diagram-cap"><strong>Chart 62 — Three homes.</strong> Imports point down; reasons differ per home.</p>
+<div class="mermaid">flowchart LR
+  N5["narrow (filter)"] --> O5["order (sort)"]
+  O5 --> W5["window (page)"]
+  W5 --> T5["tell (envelope+total)"]
+</div>
+<p class="diagram-cap"><strong>Chart 63 — List verbs.</strong> Narrow, order, window, tell — plus <code class="inline">offset=(page-1)*limit</code>.</p>
+
+<h2>4 · Express triage (final form, pre-DB)</h2>
+<div class="mermaid">flowchart TD
+  E5["Express failed?!"] --> Q14{"where?"}
+  Q14 -- "HTML reply" --> A6["error lane missing/misordered<br/>or throw outside lane"]
+  Q14 -- "req.body undefined" --> B6["parser not installed<br/>app.use(express.json())?"]
+  Q14 -- "404 on real room" --> C6["mounted path wrong<br/>or trapdoor too early"]
+  Q14 -- "double reply" --> D6["missing return<br/>after early res"]
+</div>
+<p class="diagram-cap"><strong>Chart 64 — Four Express-native verdicts.</strong> None of these exist in raw Node form — the framework trades old ceremonies for new ones, and this chart is the exchange rate.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>flowchart TD
+  E5["failed?!"] --> Q14{"where?"}
+  ...</pre>
+</details>
+
+<h2>5 · Where Module 4 hours go</h2>
+<div class="mermaid">pie title Module 4 stuck-hours (illustrative, not data)
+  "layer order + missing next" : 30
+  "req.body undefined (no parser)" : 25
+  "Zod shape vs existence" : 25
+  "mount paths + Router" : 20
+</div>
+<p class="diagram-cap"><strong>Chart 65 — Illustrative split.</strong> Ceremony again — each slice is a chart above, already drilled.</p>
+
+<h2>6 · Retrieval exercises (blank page, then check)</h2>
+<ol class="steps">
+<li><strong>Trace redraw</strong> — chart 60 from memory with both endings (§1 rubric).</li>
+<li><strong>Stack + homes</strong> — charts 61 + 62 from memory, one-word jobs + import direction.</li>
+<li><strong>Triage ×3</strong> — verdict + fix for: (a) corrupt JSON → HTML reply, (b) <code class="inline">req.body</code> undefined on valid POST, (c) healthy <code class="inline">GET /tasks</code> → 404 after the split.</li>
+<li><strong>Live drill</strong> — cold: Express app with logger/parser, two rooms (GET list w/ limit, POST w/ Zod), 404 + error lane; knock all paths incl. one 400; paste outputs.</li>
+</ol>
+<p><em>Done means:</em> two sheets + three verdicts + one working mini-app. When all pass, Module 5 is unlocked — files retire, Postgres hired.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="observe, parse, decide, unmatched, throws — order is behavior.">
+<p>1. Stack order is?</p>
+<button data-key="a">Rooms parser logger errors</button>
+<button data-key="b">Logger parser rooms trapdoor</button>
+<button data-key="c">Errors first, rest after</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="four args route throws there; three args is an ordinary layer.">
+<p>2. Lane needs arity?</p>
+<button data-key="a">One arg is enough</button>
+<button data-key="b">Two args does it</button>
+<button data-key="c">Four args exactly here</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="shape first (schema), existence second (lookup) — never mixed.">
+<p>3. Unknown id with shape?</p>
+<button data-key="a">Shape ok, then 404</button>
+<button data-key="b">404 before judging shape</button>
+<button data-key="c">500, lookup failed hard</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="narrow, order, window, tell — each feeds the next.">
+<p>4. List verbs order?</p>
+<button data-key="a">Window order narrow tell</button>
+<button data-key="b">Narrow order window tell</button>
+<button data-key="c">Tell narrow order window</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="matching/parsing/formatting retire — decisions and storage stay.">
+<p>4b. Framework buys what?</p>
+<button data-key="a">New concepts to learn</button>
+<button data-key="b">Less writing, same bones</button>
+<button data-key="c">Faster network hardware</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>7 · Summary + gate to Module 5</h2>
+<div class="callout why">Module 4 is yours when: <strong>you trace dressed knocks blind, recite the stack, split homes by reason, page honest lists, and triage all four Express verdicts</strong>. Next: Module 5 — the storage engine swap: files out, Postgres in, services untouched.</div>
+
+<div class="callout">
+<strong>Primary sources (re-read only misses):</strong> <a href="https://expressjs.com/en/guide/using-middleware.html">Express middleware</a> · <a href="https://zod.dev/">Zod</a> · <a href="https://expressjs.com/en/guide/routing.html">routing</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0020-structure-and-paging.html">← 0020 Structure</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Module 5 starts at 0022 — SQL by hand before any ORM.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Ex3: (a) HTML → error lane missing (3-arg?) or misordered — fix arity/position. (b) parser not installed — add <code class="inline">app.use(express.json())</code> before rooms. (c) mount wrong (<code class="inline">app.use("/task",…)</code>?) or trapdoor before rooms — fix path/order. Ex4 app must show all five stack residents + Zod 400 with issues + envelope GET.</p>
+<p>Quiz: 1b, 2c, 3a, 4b, 4b→b. Gate: ≥4/5 + drill working = Module 5 unlocked.</p>
+</details>
+
+<footer><strong>Checkpoint 0021</strong> · Module 4 gate · 7 charts · Sources: Express/Zod/routing · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

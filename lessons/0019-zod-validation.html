@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0019 — Zod: Schemas Rule the Rooms</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Zod input validation: one schema per entrance, safeParse verdicts, precise 400 issues, strict keys, coerced query numbers.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0019-zod-validation.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0019-zod-validation.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0019 — Zod: Schemas Rule the Rooms">
+<meta property="og:description" content="Zod input validation: one schema per entrance, safeParse verdicts, precise 400 issues, strict keys, coerced query numbers.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0019 — Zod: Schemas Rule the Rooms">
+<meta name="twitter:description" content="Zod input validation: one schema per entrance, safeParse verdicts, precise 400 issues, strict keys, coerced query numbers.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0019 — Zod: Schemas Rule the Rooms", "description": "Zod input validation: one schema per entrance, safeParse verdicts, precise 400 issues, strict keys, coerced query numbers.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0018-middleware-and-errors.html">← 0018</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0019</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 4 · EXPRESS + REST · LESSON 3</p>
+<h1>Schemas <span class="u-stroke">rule</span> the rooms</h1>
+<p class="subtitle">One sitting, one win: hand-checks retire — every input is judged by a schema that names each fault.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Lesson 0018 (layers)</span><span>Objectives: schema · safeParse · 400s</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Your rooms are filling with <code class="inline">typeof</code> spaghetti — title checks here, done checks there, limit checks everywhere, each phrased differently. Validation logic scattered across handlers rots first and lies most. The fix: describe the shape <em>once</em>, judge every input against it, and let the failures describe themselves.</div>
+
+<h2>1 · The mental model: bouncer with a photo</h2>
+<div class="mermaid">flowchart LR
+  S3["schema (photo)<br/>title: non-empty string"] --> J2["judge: safeParse(input)<br/>no throws, ever"]
+  J2 -->|"success"| IN2["IN: clean data<br/>types guaranteed"]
+  J2 -->|"fail"| OUT2["OUT: 400 + issue list<br/>each fault named"]
+</div>
+<p class="diagram-cap"><strong>Chart 53 — Bouncer.</strong> One photo per room-entrance (body, query, params); the judge never throws — it returns a verdict object.</p>
+<details><summary><strong>Source + safeParse law (click)</strong></summary>
+<p>Law: <code class="inline">safeParse</code> in servers, never bare <code class="inline">parse</code> (which throws — and a throw for user input is using the error lane as validation). Verdict shape: <code class="inline">{ success: true, data }</code> vs <code class="inline">{ success: false, error }</code>; <code class="inline">error.issues</code> names path + message per fault. Source: <a href="https://zod.dev/">Zod docs</a>.</p>
+<pre>flowchart LR
+  S3["schema"] --> J2["safeParse"] --> IN2["clean data"]/OUT2["400 issues"]</pre>
+</details>
+
+<h2>2 · Three photos for three doors</h2>
+<div class="mermaid">flowchart TD
+  B3["BODY photo<br/>taskCreate { title }"] --> R7["POST /tasks<br/>205? no — 201"]
+  Q4["QUERY photo<br/>{ done?, limit? } coerced"] --> R8["GET /tasks<br/>filters, all optional"]
+  P3["PARAMS photo<br/>{ id: string }"] --> R9["/:id rooms<br/>shape first, exists second"]
+</div>
+<p class="diagram-cap"><strong>Chart 54 — Which photo where.</strong> Bodies are strict (required keys); queries are loose (all optional, text coerced); params prove shape before handlers check existence.</p>
+<details><summary><strong>Source + coercion note (click)</strong></summary>
+<p>URLs carry text only, so query schemas coerce: <code class="inline">z.coerce.number()</code> turns <code class="inline">"20"</code> into <code class="inline">20</code>, then <code class="inline">.int().positive()</code> judges it. Coercion without judgment is laundering — always chain both.</p>
+<pre>flowchart TD
+  B3["body strict"] / Q4["query loose+coerced"] / P3["params shape"]</pre>
+</details>
+
+<h2>3 · Validation lane inside a room</h2>
+<div class="mermaid">sequenceDiagram
+  participant R as room handler
+  participant Z as schema.safeParse
+  participant S as storage
+  R->>Z: judge req.body
+  Z->>R: fail? 400 + issues (stop)
+  Z->>R: ok? clean data (continue)
+  R->>S: store CLEAN data only
+</div>
+<p class="diagram-cap"><strong>Chart 55 — Judge before store.</strong> Storage never sees unvetted input — chart 36's law, now with photo IDs.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>sequenceDiagram
+  participant R as room
+  participant Z as schema
+  participant S as storage
+  ...</pre>
+</details>
+
+<h2>4 · Live demo: bouncers hired (10 min)</h2>
+<pre>npm install zod
+<span class="c"># check package.json — tiny, zero-dependency, typed</span></pre>
+<p>Create <code class="inline">schemas.mjs</code>, then slim two rooms:</p>
+<pre>// file: schemas.mjs
+import { z } from "zod";
+
+export const taskCreate = z.object({
+  title: z.string().trim().min(1, "title must be a non-empty string"),
+}).strict(); // no mystery keys smuggled in
+
+export const taskUpdate = z.object({
+  title: z.string().trim().min(1).optional(),
+  done: z.boolean().optional(),
+}).strict().refine((o) =&gt; Object.keys(o).length &gt; 0, "send at least one field");
+
+export const taskQuery = z.object({
+  done: z.enum(["true", "false"]).optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
+export function judged(res, verdict) {
+  if (verdict.success) return verdict.data;
+  res.status(400).json({ error: "invalid input", issues: verdict.error.issues });
+  return null; // caller: if (!data) return;
+}</pre>
+<pre>// rooms become (imports + wiring assumed):
+app.post("/tasks", (req, res) =&gt; {
+  const data = judged(res, taskCreate.safeParse(req.body));
+  if (!data) return; // 400 already sent, with named issues
+  const task = { id: `t${Date.now()}`, title: data.title, done: false };
+  tasks.push(task);
+  res.status(201).json(task);
+});
+app.get("/tasks", (req, res) =&gt; {
+  const q = judged(res, taskQuery.safeParse(req.query));
+  if (!q) return;
+  let list = tasks;
+  if (q.done !== undefined) list = list.filter((t) =&gt; String(t.done) === q.done);
+  if (q.limit !== undefined) list = list.slice(0, q.limit);
+  res.json(list);
+});</pre>
+<pre>node app.mjs
+node -e "const r = await fetch('http://localhost:3000/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:'  '})}); console.log(r.status, JSON.stringify(await r.json()))"
+<span class="c"># expected: 400 { error:'invalid input', issues:[{ path:['title'], message:'title must be...' }] }</span>
+node -e "const r = await fetch('http://localhost:3000/tasks?limit=abc'); console.log(r.status, JSON.stringify(await r.json()))"
+<span class="c"># expected: 400 with issues on limit — coercion judged, not laundered</span></pre>
+<p>Why it works: <code class="inline">.strict()</code> rejects smuggled keys (clients can't plant <code class="inline">admin:true</code>); <code class="inline">trim</code> runs before <code class="inline">min(1)</code> so whitespace-only fails; <code class="inline">judged</code> keeps rooms at two lines — judge-or-leave.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Validation retires as a <em>worry</em> and becomes inventory: every new room starts by writing its three photos. Module 5 reuses these exact shapes against database rows; Module 6 adds auth photos (email/password rules). The <code class="inline">judged</code> helper survives into middleware form later — same verdict, earlier lane.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“parse instead of safeParse.”</strong> Throws on user input → error lane treats a typo like a crash (500-shape). Fix: <code class="inline">safeParse</code> at boundaries, always; reserve throws for programmer bugs.</div>
+<div class="callout"><strong>“Validated body, forgot query.”</strong> <code class="inline">?limit=-5</code> slices weirdness (negative slice = tail!). Fix: every entrance gets a photo — body, query, params, no exceptions.</div>
+<div class="callout warn"><strong>“Coerced without judging.”</strong> <code class="inline">Number(x)</code> then trusted — <code class="inline">NaN</code> walks in wearing a number costume. Fix: coerce <em>inside</em> the schema so judgment follows automatically.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Install Zod; add the three schemas + <code class="inline">judged</code>; convert POST + GET-rooms; paste the two 400 outputs above.</li>
+<li>Convert <code class="inline">PUT /tasks/:id</code> to <code class="inline">taskUpdate</code>; knock an empty object <code class="inline">{}</code> — paste the 400 naming the refine fault.</li>
+<li>Smuggle <code class="inline">{"title":"x","admin":true}</code> — paste the strict-mode rejection naming the key.</li>
+</ol>
+<p><em>Done means:</em> three 400 pastes, each naming its fault precisely. Lesson 0020 (structure: routes/services + paging) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="safeParse returns verdicts; parse throws — and user typos aren't crashes.">
+<p>1. Server judges with?</p>
+<button data-key="a">Bare parse and catch</button>
+<button data-key="b">safeParse verdict object</button>
+<button data-key="c">Typeof chains per field</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="strict rejects undeclared keys — clients can't plant admin:true.">
+<p>2. strict() blocks what?</p>
+<button data-key="a">Empty strings in title</button>
+<button data-key="b">Negative paging limits</button>
+<button data-key="c">Smuggled mystery keys</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="URLs carry text — coerce to number, then judge int/positive.">
+<p>3. limit=20 arrives as?</p>
+<button data-key="a">Text coerced then judged</button>
+<button data-key="b">Number type already set</button>
+<button data-key="c">Boolean flag from router</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="storage downstream must never meet unvetted input.">
+<p>4. Store raw req.body?</p>
+<button data-key="a">Yes, trust the client</button>
+<button data-key="b">No, clean data only</button>
+<button data-key="c">Yes, if JSON parsed</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Bouncers hired: <strong>one schema per entrance, safeParse verdicts, 400s naming faults, strict against smuggling, coerce-then-judge queries</strong>. Next: structure — rooms leave app.mjs for their own files, lists grow pages.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://zod.dev/">Zod docs</a> (basics + coercion + strict).
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0018-middleware-and-errors.html">← 0018 Middleware</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0020 (structure + paging/sort) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: empty-object PUT → <code class="inline">400 { error:'invalid input', issues:[{ code:'custom', message:'send at least one field' }] }</code>. Smuggle → <code class="inline">issues:[{ code:'unrecognized_keys', keys:['admin'] }]</code>. Rooms must early-return after judged-null or double-reply strikes.</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “Zod sanitizes for DB” — correct: it validates shape, never escapes; SQL safety is Module 5's parameterized queries.</p>
+</details>
+
+<footer><strong>Lesson 0019</strong> · Module 4 · Zod validation · Source: <a href="https://zod.dev/">Zod</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

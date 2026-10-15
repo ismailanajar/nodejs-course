@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0001 — Course Map: How TaskFlow Fits Together</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Course map for a project-based Node.js backend course: 8 modules from HTTP basics to a deployed TaskFlow API. Syllabus, durations, milestones, verified stack.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0001-course-map.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0001-course-map.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0001 — Course Map: How TaskFlow Fits Together">
+<meta property="og:description" content="Course map for a project-based Node.js backend course: 8 modules from HTTP basics to a deployed TaskFlow API. Syllabus, durations, milestones, verified stack.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0001 — Course Map: How TaskFlow Fits Together">
+<meta name="twitter:description" content="Course map for a project-based Node.js backend course: 8 modules from HTTP basics to a deployed TaskFlow API. Syllabus, durations, milestones, verified stack.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0001 — Course Map: How TaskFlow Fits Together", "description": "Course map for a project-based Node.js backend course: 8 modules from HTTP basics to a deployed TaskFlow API. Syllabus, durations, milestones, verified stack.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="../reference/glossary.html">Glossary</a><a href="../MISSION.md">Mission</a><span class="badge">Lesson 0001</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">NODE.JS BACKEND COURSE · STAGE 1</p>
+<h1>Course map: from <span class="u-stroke">fetch works</span> to “I ship APIs”</h1>
+<p class="subtitle">One sitting, one win: you can draw the whole backend journey and know exactly where TaskFlow goes next.</p>
+
+<div class="meta">
+<span>⏱ 35–45 min</span><span>Prerequisites: HTML/CSS/JS + fetch basics</span>
+<span>Objectives: request lifecycle · 8-module map · TaskFlow milestones · what to install</span>
+</div>
+</header>
+
+<div class="callout why"><strong>Start with a real problem.</strong> You can build a beautiful todo UI, but refresh the page and everything vanishes. Two users can't share anything. There is nowhere to check “is this person allowed to see this task?” — because everything lives in the browser. That missing half <em>is</em> the backend, and this course builds it piece by piece as <strong>TaskFlow</strong>.</div>
+
+<h2>1 · The mental model (read this diagram first)</h2>
+<p>Frontend <em>asks</em>. Backend <em>decides + remembers</em>. Database <em>keeps</em>. Three jobs, three places:</p>
+
+<div class="mermaid">flowchart LR
+  B["Browser / Frontend<br/>asks with fetch()"] -->|"HTTP request<br/>method + path + body"| S["Node + Express API<br/>decides + checks"]
+  S -->|"SQL via Prisma<br/>read / write"| D[("PostgreSQL<br/>remembers rows")]
+  D -->|"rows"| S
+  S -->|"HTTP response<br/>status + JSON"| B
+</div>
+<p class="diagram-cap"><strong>Diagram A — Browser → API → Database.</strong> Title says what it is; arrows show direction of travel.</p>
+<details><summary><strong>How to read + walkthrough (click)</strong></summary>
+<p><em>How to read:</em> boxes are programs, arrows are messages. Follow the numbers: ① frontend sends HTTP request ② API validates, checks auth, runs logic ③ API queries Postgres ④ rows come back ⑤ API replies with status + JSON.</p>
+<p><em>Beginner takeaway:</em> the frontend never touches the database directly. If data survives refresh or is shared between users, it went through this loop. Full reference: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP">MDN HTTP overview</a>.</p>
+<pre>flowchart LR
+  B["Browser / Frontend&lt;br/&gt;asks with fetch()"] -->|"HTTP request&lt;br/&gt;method + path + body"| S["Node + Express API&lt;br/&gt;decides + checks"]
+  S -->|"SQL via Prisma&lt;br/&gt;read / write"| D[("PostgreSQL&lt;br/&gt;remembers rows")]
+  D -->|"rows"| S
+  S -->|"HTTP response&lt;br/&gt;status + JSON"| B</pre>
+</details>
+
+<h2>2 · What each piece actually is (no jargon debt)</h2>
+<table>
+<tr><th>Word (<a href="../reference/glossary.html">glossary</a>)</th><th>Plain-English meaning</th><th>Frontend analogy</th></tr>
+<tr><td><strong>Server</strong></td><td>A program that never quits; it <em>waits</em> for requests and answers them.</td><td>Like an event listener that never gets removed.</td></tr>
+<tr><td><strong>Port</strong></td><td>A numbered door (e.g. <code class="inline">3000</code>) where one server waits. <code class="inline">localhost:3000</code> = “this laptop, door 3000”.</td><td>Like a tab ID — same browser, different slot.</td></tr>
+<tr><td><strong>API</strong></td><td>The agreed request/response shapes: “<code class="inline">GET /tasks</code> returns a list”.</td><td>Like a component's props contract.</td></tr>
+<tr><td><strong>PostgreSQL / Prisma</strong></td><td>Postgres <em>stores</em> rows durably; Prisma is a typed helper that writes safe SQL for you — after you learn SQL.</td><td>Like localStorage, but shared, relational, and safe.</td></tr>
+</table>
+<p>Stack lock for this course (verified Oct 2026 — see <a href="../RESOURCES.md">RESOURCES.md</a>): <strong>Node 24 LTS “Krypton”</strong> (<a href="https://nodejs.org/en/docs">Node docs</a> — v24 is LTS, v26 is Current), <strong>Express 5.x</strong> (needs Node 18+, <a href="https://expressjs.com/en/api/">Express 5 API</a>), <strong>PostgreSQL 16/17</strong> (<a href="https://www.postgresql.org/docs/current/tutorial.html">PG tutorial</a>), <strong>Prisma ORM 7 stable</strong> (v8 is release-candidate — we stay on 7, <a href="https://www.prisma.io/docs/orm/v7/core-concepts/supported-databases/postgresql">Prisma v7 Postgres</a>), plus Zod, argon2/bcrypt, Node test runner + Supertest, Docker only for local DB + deploy.</p>
+
+<h2>3 · The 8-module dependency map</h2>
+<p>Each module unlocks the next. Do not skip ahead — Module 4 auth makes no sense before Module 3 routing.</p>
+<div class="mermaid">flowchart TD
+  M1["M1 How the Web Works<br/>request lifecycle"] --> M2["M2 Node Fundamentals<br/>CLI TaskFlow v0"]
+  M2 --> M3["M3 Server from Scratch<br/>raw HTTP + ports"]
+  M3 --> M4["M4 Express + REST<br/>in-memory CRUD API"]
+  M4 --> M5["M5 Postgres + SQL → Prisma<br/>users/projects/tasks"]
+  M5 --> M6["M6 Auth + Security<br/>login, ownership, CORS"]
+  M6 --> M7["M7 Tests + Docs + TS<br/>runner, OpenAPI"]
+  M7 --> M8["M8 Deploy + Prod<br/>hosting, env, Docker"]
+  M8 --> CAP["Capstone<br/>deployed TaskFlow + frontend"]
+</div>
+<p class="diagram-cap"><strong>Diagram B — Dependency roadmap.</strong> Arrows mean “requires”. There is exactly one path.</p>
+<details><summary><strong>Walkthrough + source (click)</strong></summary>
+<p><em>Walkthrough:</em> M1 gives you the vocabulary (client/server/HTTP). M2 gives you the runtime (Node, npm, files, async). M3 reveals what Express hides (listen, parse, route). M4–M6 are the real API. M7 makes it maintainable. M8 makes it public.</p>
+<pre>flowchart TD
+  M1["M1 How the Web Works"] --> M2["M2 Node Fundamentals"]
+  M2 --> M3["M3 Server from Scratch"]
+  M3 --> M4["M4 Express + REST"]
+  M4 --> M5["M5 Postgres + SQL -&gt; Prisma"]
+  M5 --> M6["M6 Auth + Security"]
+  M6 --> M7["M7 Tests + Docs + TS"]
+  M7 --> M8["M8 Deploy + Prod"]
+  M8 --> CAP["Capstone"]</pre>
+</details>
+
+<h2>4 · Syllabus + durations + TaskFlow milestones</h2>
+<table>
+<tr><th>Mod</th><th>Title · exit skill</th><th>Time</th><th>TaskFlow milestone</th></tr>
+<tr><td>1</td><td>How the Web Works · draw + explain any request</td><td>1 wk · 5h</td><td>Architecture sketch of frontend ↔ backend</td></tr>
+<tr><td>2</td><td>Node Fundamentals · run scripts, files, env, async</td><td>1.5 wk · 8h</td><td>CLI task manager on JSON files</td></tr>
+<tr><td>3</td><td>Server from Scratch · raw <code class="inline">http</code> + ports + status codes</td><td>1 wk · 6h</td><td>Health/products/tasks server, no framework</td></tr>
+<tr><td>4</td><td>Express + REST · middleware, Zod, clean errors</td><td>2 wk · 12h</td><td>In-memory CRUD API with pagination</td></tr>
+<tr><td>5</td><td>Databases + SQL → Prisma · JOINs, migrations</td><td>2 wk · 12h</td><td>Postgres users → projects → tasks</td></tr>
+<tr><td>6</td><td>Auth + Security · hash, sessions/cookies, ownership, CORS</td><td>1.5 wk · 10h</td><td>Register/login/logout; users see only theirs</td></tr>
+<tr><td>7</td><td>Testing + Maintainability · integration tests, OpenAPI, TS</td><td>1.5 wk · 10h</td><td>Tested + documented API</td></tr>
+<tr><td>8</td><td>Deployment + Production · env secrets, Docker, health checks</td><td>1.5 wk · 10h</td><td>Live API + live frontend wired together</td></tr>
+<tr><td>★</td><td>Capstone + assessments</td><td>~10h</td><td>Rubric: auth, tests pass, docs, deployed</td></tr>
+</table>
+<p><strong>Total ≈ 12 weeks · ~83h</strong> at 6–7h/week. Repo shape preview (full workflow lands in Stage 2): <code class="inline">course/diagrams/module-0X/*.mmd → generated/</code> via <code class="inline">npm run diagrams</code>, plus <code class="inline">lessons/</code> and <code class="inline">taskflow/</code> that grows per row above.</p>
+
+<h2>5 · Live check: prove your machine is ready (2 min)</h2>
+<p>Create <code class="inline">hello-backend.mjs</code> and run it — this is the smallest “backend thought”: a program that computes and prints, no browser needed.</p>
+<pre>// file: hello-backend.mjs
+const who = process.argv[2] ?? "future backend dev";
+console.log(`hello ${who} — Node ${process.version}`);</pre>
+<pre>node --version
+<span class="c"># want v24.x (LTS). If v26, fine; if &lt;20, upgrade via https://nodejs.org/en/download</span>
+node hello-backend.mjs Ada
+<span class="c"># expected: hello Ada — Node v24.x.x</span></pre>
+<p>Why it matters: every later server is just this — a long-running Node process — plus “wait for HTTP on a port”. If this runs, Module 2 is already half-won.</p>
+
+<h2>6 · Common mistakes (save yourself an hour)</h2>
+<div class="callout"><strong>“localhost refused to connect.”</strong> Nothing is listening on that port (server not started, or wrong port). Fix: start the server first, then match the exact port in URL and <code class="inline">fetch()</code>.</div>
+<div class="callout"><strong>“I know Express but not HTTP.”</strong> Framework-first learning leaks. Fix: Module 3 forces raw <code class="inline">node:http</code> first so Express middleware order feels obvious later.</div>
+<div class="callout warn"><strong>“I'll learn Prisma and skip SQL.”</strong> Then every relation bug is magic. Fix: Module 5 writes <code class="inline">INSERT/SELECT/JOIN</code> by hand before Prisma is allowed.</div>
+
+<h2>7 · Practice exercise (acceptance criteria included)</h2>
+<ol class="steps">
+<li>On paper or Excalidraw, draw Diagram A from memory with your own labels (no peeking).</li>
+<li>Under each arrow, write one example: a real method+path, a real SQL line, a real status code.</li>
+<li>Write 3 sentences: what the frontend owns, what the backend owns, what the DB owns.</li>
+</ol>
+<p><em>Done means:</em> a friend who only knows frontend can follow your drawing, and you can point to where TaskFlow's “login” will live (hint: §1 walkthrough step ②).</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="a" data-why="the backend runs on a server machine, not in your browser tab.">
+<p>1. Where does your backend code run?</p>
+<button data-key="a">On remote server</button>
+<button data-key="b">In browser tab</button>
+<button data-key="c">In style sheet</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="the browser is untrusted — rules and secrets must live server-side.">
+<p>2. Why keep a backend at all?</p>
+<button data-key="a">Save frontend code space</button>
+<button data-key="b">Trust browser never fully</button>
+<button data-key="c">Avoid writing any tests</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="a port is the numbered door one server listens on.">
+<p>3. What is a port?</p>
+<button data-key="a">Cable behind the laptop</button>
+<button data-key="b">Folder inside the project</button>
+<button data-key="c">Numbered door for server</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="request flows client → server → database, then replies back.">
+<p>4. Which order is correct?</p>
+<button data-key="a">Client server database reply</button>
+<button data-key="b">Server client reply database</button>
+<button data-key="c">Database client server reply</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="one project grows every module — that is the whole spine.">
+<p>5. How does TaskFlow evolve?</p>
+<button data-key="a">Many random demo apps</button>
+<button data-key="b">One growing TaskFlow app</button>
+<button data-key="c">One static frontend page</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary + what unlocks next</h2>
+<div class="callout why">You now own the map: <strong>client asks → API decides → Postgres remembers → API replies</strong>; 8 modules in strict order (~83h); TaskFlow grows from CLI to deployed API; your machine runs Node. Module 1 next turns this map into a runnable request you can inspect header-by-header.</div>
+
+<div class="callout">
+<strong>Primary source for this lesson:</strong> <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP">MDN — HTTP overview</a> (use it whenever a claim about requests/responses feels fuzzy).
+</div>
+
+<div class="next">
+<a class="btn ghost" href="../reference/glossary.html">← Glossary v0</a>
+<a class="btn primary" href="../reference/glossary.html">Next up: Module 1 lessons (Stage 3) →</a>
+</div>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key (don't peek before trying)</strong></summary>
+<p>Exercise: frontend owns presentation + fetch calls; backend owns validation, auth, business rules, status codes; DB owns durable rows + relations. Login lives in API step ② (verify hash, create session) + DB lookup. Quiz: 1a, 2b, 3c, 4a, 5b.</p>
+<p>Grading: drawing must show all 5 arrows with correct directions + one concrete example each. Misconception to watch: “port = folder/URL path” — correct with localhost:3000 door analogy.</p>
+</details>
+
+<footer>Stage 1 deliverable · architecture + objectives + syllabus + durations + milestones + dependency graph · Sources: Node.js, Express 5, MDN HTTP, PG, Prisma v7 docs (see RESOURCES.md). · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>TaskFlow Node.js Backend Course — From fetch to Shipped API</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/">
+<meta name="description" content="Free project-based Node.js backend course for frontend developers: HTTP, Node, raw servers, Express, PostgreSQL, auth, testing, deployment. 21 lessons with diagrams, quizzes, and the growing TaskFlow API.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="TaskFlow Node.js Backend Course — From fetch to Shipped API">
+<meta property="og:description" content="Free project-based Node.js backend course for frontend developers: HTTP, Node, raw servers, Express, PostgreSQL, auth, testing, deployment. 21 lessons with diagrams and quizzes.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="TaskFlow Node.js Backend Course — From fetch to Shipped API">
+<meta name="twitter:description" content="Free project-based Node.js backend course: 21 lessons from HTTP basics to a deployed API, with diagrams, quizzes, and the growing TaskFlow project.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "Course", "name": "TaskFlow Node.js Backend Course", "description": "Project-based Node.js backend course for frontend developers: HTTP, Node.js, Express, PostgreSQL, auth, testing, deployment.", "provider": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "inLanguage": "en", "hasCourseInstance": {"@type": "CourseInstance", "courseMode": "online", "courseWorkload": "P12W"}}}</script>
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="#modules">Modules</a><a href="reference/glossary.html">Glossary</a><span class="badge">Free course</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">NODE.JS BACKEND COURSE · 21 LESSONS · PROJECT-BASED</p>
+<h1>From <span class="u-stroke">fetch works</span> to “I ship APIs”</h1>
+<p class="subtitle">You know frontend. This course builds the other half: one growing TaskFlow API from raw HTTP to a deployed, tested backend — no CS degree assumed.</p>
+<div class="meta">
+<span>⏱ ~12 weeks · ~83h</span><span>Stack: Node 24 · Express 5 · PostgreSQL</span><span>Diagrams + quizzes every lesson</span>
+</div>
+</header>
+
+<div class="callout why"><strong>How it works.</strong> One continuous project (TaskFlow) grows every module: CLI → raw HTTP server → Express API → Postgres → auth → tested + documented → deployed. Short lessons, each one tangible win, each with Mermaid diagrams and an instant-feedback quiz.</div>
+
+<h2 id="modules">Modules + lessons</h2>
+
+<h3>Module 0 — Orientation</h3>
+<table>
+<tr><th>#</th><th>Lesson</th><th>Win</th></tr>
+<tr><td>0001</td><td><a href="lessons/0001-course-map.html">Course map</a></td><td>Draw the whole backend journey; syllabus + milestones</td></tr>
+</table>
+
+<h3>Module 1 — How the Web Works</h3>
+<table>
+<tr><th>#</th><th>Lesson</th><th>Win</th></tr>
+<tr><td>0002</td><td><a href="lessons/0002-http-request-and-response.html">What your fetch call really sends</a></td><td>Read any HTTP request + response line by line</td></tr>
+<tr><td>0003</td><td><a href="lessons/0003-urls-localhost-and-ports.html">Where does your request go?</a></td><td>URLs, localhost, ports, ECONNREFUSED</td></tr>
+<tr><td>0004</td><td><a href="lessons/0004-json-and-api-contracts.html">JSON + the contract</a></td><td>Six JSON rules; write a POST contract</td></tr>
+<tr><td>0005</td><td><a href="lessons/0005-module-1-checkpoint.html">Checkpoint</a></td><td>Redraw lifecycle blind; triage any failure</td></tr>
+</table>
+
+<h3>Module 2 — Node.js Fundamentals</h3>
+<table>
+<tr><th>#</th><th>Lesson</th><th>Win</th></tr>
+<tr><td>0006</td><td><a href="lessons/0006-run-js-outside-the-browser.html">JavaScript leaves the browser</a></td><td>Run scripts with argv; no DOM here</td></tr>
+<tr><td>0007</td><td><a href="lessons/0007-files-taskflow-v0.html">Files: memory that survives</a></td><td>CLI TaskFlow v0 on tasks.json</td></tr>
+<tr><td>0008</td><td><a href="lessons/0008-npm-and-modules.html">Borrow code without fear</a></td><td>npm project, nanoid IDs, scripts</td></tr>
+<tr><td>0009</td><td><a href="lessons/0009-env-vars-and-errors.html">Dials outside the code</a></td><td>Env config + friendly errors</td></tr>
+<tr><td>0010</td><td><a href="lessons/0010-async-and-event-loop.html">One cook, many orders</a></td><td>await truth + event-loop sketch</td></tr>
+<tr><td>0011</td><td><a href="lessons/0011-module-2-checkpoint.html">Checkpoint</a></td><td>Whole-program redraw; gate to servers</td></tr>
+</table>
+
+<h3>Module 3 — Server From Scratch</h3>
+<table>
+<tr><th>#</th><th>Lesson</th><th>Win</th></tr>
+<tr><td>0012</td><td><a href="lessons/0012-first-listening-server.html">The program that waits</a></td><td>First reply on door 3000</td></tr>
+<tr><td>0013</td><td><a href="lessons/0013-routing-by-hand.html">One door, many rooms</a></td><td>Guard routing + 404 trapdoor</td></tr>
+<tr><td>0014</td><td><a href="lessons/0014-request-bodies-and-post.html">Knocks that carry things</a></td><td>Bodies, 201/400, POST tasks</td></tr>
+<tr><td>0015</td><td><a href="lessons/0015-file-behind-http.html">The file behind the rooms</a></td><td>Restart-proof CRUD + race honesty</td></tr>
+<tr><td>0016</td><td><a href="lessons/0016-module-3-checkpoint.html">Checkpoint</a></td><td>Cold-write a server; gate to Express</td></tr>
+</table>
+
+<h3>Module 4 — Express + REST</h3>
+<table>
+<tr><th>#</th><th>Lesson</th><th>Win</th></tr>
+<tr><td>0017</td><td><a href="lessons/0017-express-hello.html">Hire the receptionist</a></td><td>Same API on Express, less code</td></tr>
+<tr><td>0018</td><td><a href="lessons/0018-middleware-and-errors.html">Layers you control</a></td><td>Middleware order + JSON error lane</td></tr>
+<tr><td>0019</td><td><a href="lessons/0019-zod-validation.html">Schemas rule the rooms</a></td><td>Zod 400s naming every fault</td></tr>
+<tr><td>0020</td><td><a href="lessons/0020-structure-and-paging.html">Rooms get their files</a></td><td>Routes/services split + envelopes</td></tr>
+<tr><td>0021</td><td><a href="lessons/0021-module-4-checkpoint.html">Checkpoint</a></td><td>Trace dressed knocks blind; gate to DBs</td></tr>
+</table>
+
+<p style="color:var(--muted)">Coming next: Module 5 (PostgreSQL + SQL before any ORM) → 6 (auth) → 7 (tests) → 8 (deploy). Start at <a href="lessons/0001-course-map.html">0001</a>, go in order — each module gates the next.</p>
+
+<div class="callout">
+<strong>Reference:</strong> <a href="reference/glossary.html">Course glossary v0</a> — exact meanings used across all lessons.<br>
+<strong>Sources:</strong> every lesson cites MDN, Node.js, Express, PostgreSQL, Prisma, or Zod docs — claims trace to primary sources, not memory.
+</div>
+
+<div class="next">
+<a class="btn primary" href="lessons/0001-course-map.html">Start at 0001 →</a>
+<a class="btn ghost" href="reference/glossary.html">Glossary</a>
+</div>
+
+<footer><strong>TaskFlow Node.js Backend Course</strong> · 21 lessons · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a> · Stack: Node 24 LTS, Express 5, PostgreSQL · <a href="https://github.com/ismailanajar/nodejs-course">GitHub repo</a></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0004 — JSON + API Contracts: the Shared Language</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="JSON rules plus API contracts: six JSON rules, endpoints, status codes, and writing a mini contract for POST /tasks.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0004-json-and-api-contracts.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0004-json-and-api-contracts.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0004 — JSON + API Contracts: the Shared Language">
+<meta property="og:description" content="JSON rules plus API contracts: six JSON rules, endpoints, status codes, and writing a mini contract for POST /tasks.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0004 — JSON + API Contracts: the Shared Language">
+<meta name="twitter:description" content="JSON rules plus API contracts: six JSON rules, endpoints, status codes, and writing a mini contract for POST /tasks.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0004 — JSON + API Contracts: the Shared Language", "description": "JSON rules plus API contracts: six JSON rules, endpoints, status codes, and writing a mini contract for POST /tasks.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0003-urls-localhost-and-ports.html">← 0003</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0004</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 1 · HOW THE WEB WORKS · LESSON 3</p>
+<h1>JSON + the <span class="u-stroke">contract</span> both sides sign</h1>
+<p class="subtitle">One sitting, one win: you write a mini API contract for one resource and validate its JSON by hand.</p>
+<div class="meta">
+<span>⏱ 25–35 min</span><span>Prerequisites: Lessons 0002–0003</span><span>Objectives: JSON rules · endpoints · status meaning</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Your frontend reads <code class="inline">task.title</code> — the server sends <code class="inline">task.name</code>. Nothing crashes loudly; the screen just shows blank. Every frontend/backend bug of this family is a <em>contract</em> bug: both sides imagined a different shape. Today you learn to write the agreement down first.</div>
+
+<h2>1 · The mental model: a restaurant menu</h2>
+<p>The <strong>API</strong> is the menu both sides sign: dish names (endpoints), what's inside each dish (shapes), prices (status codes). The frontend orders <em>from the menu</em>; the kitchen cooks <em>to the menu</em>. Nobody improvises — that's the whole discipline:</p>
+<div class="mermaid">flowchart LR
+  C["CONTRACT<br/>menu both sides sign"] --> F["FRONTEND<br/>orders from menu"]
+  C --> B["BACKEND<br/>cooks to menu"]
+  F -->|"request<br/>as promised"| B
+  B -->|"response<br/>as promised"| F
+</div>
+<p class="diagram-cap"><strong>Diagram E — Contract-first.</strong> The contract exists before either side's code; arrows must match it or someone broke the deal.</p>
+<details><summary><strong>How to read + walkthrough (click)</strong></summary>
+<p><em>How to read:</em> the contract box is the source of truth — both arrows below it are judged against it, never against each other's code.</p>
+<p><em>Walkthrough:</em> ① contract says <code class="inline">GET /tasks</code> returns a list of <code class="inline">{ id, title, done }</code> ② frontend writes its list UI against exactly those keys ③ backend implements exactly those keys ④ any blank screen = diff the real message against the contract; the side that drifted is guilty in seconds.</p>
+<p><em>Takeaway:</em> write the shapes down <em>before</em> coding either side. Module 7 turns this habit into OpenAPI docs. Source: <a href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Scripting/JSON">MDN — Working with JSON</a>.</p>
+<pre>flowchart LR
+  C["CONTRACT - menu both sides sign"] --> F["FRONTEND - orders from menu"]
+  C --> B["BACKEND - cooks to menu"]
+  F -->|"request - as promised"| B
+  B -->|"response - as promised"| F</pre>
+</details>
+
+<h2>2 · JSON: six rules, no more</h2>
+<p><strong>JSON</strong> is just text both sides parse identically. Six types exist: <code class="inline">string</code>, <code class="inline">number</code>, <code class="inline">boolean</code>, <code class="inline">null</code>, <code class="inline">array</code>, <code class="inline">object</code>. And six rules:</p>
+<table>
+<tr><th>#</th><th>Rule</th><th>Wrong → Right</th></tr>
+<tr><td>1</td><td>Double quotes only for keys + strings</td><td><code class="inline">{'a':1}</code> → <code class="inline">{"a":1}</code></td></tr>
+<tr><td>2</td><td>No trailing commas</td><td><code class="inline">[1,2,]</code> → <code class="inline">[1,2]</code></td></tr>
+<tr><td>3</td><td>No comments, no functions, no dates</td><td>dates travel as <code class="inline">"2026-10-15"</code> strings</td></tr>
+<tr><td>4</td><td>Top level is an object or array</td><td>our APIs answer with objects holding arrays</td></tr>
+<tr><td>5</td><td><code class="inline">undefined</code> doesn't exist — it gets dropped</td><td>missing key ≠ <code class="inline">null</code> (explicitly empty)</td></tr>
+<tr><td>6</td><td>Both sides convert: stringify to send, parse to read</td><td><code class="inline">JSON.stringify(obj)</code> → text → <code class="inline">JSON.parse(text)</code></td></tr>
+</table>
+<p>An <strong>endpoint</strong> is one menu line: method + path + request shape + response shape + statuses. Our first real menu (Module 4 implements exactly this):</p>
+<table>
+<tr><th>Endpoint</th><th>Request body</th><th>Success reply</th></tr>
+<tr><td><code class="inline">GET /tasks</code></td><td>none</td><td><code class="inline">200</code> + <code class="inline">[{ id, title, done }]</code></td></tr>
+<tr><td><code class="inline">POST /tasks</code></td><td><code class="inline">{ title }</code></td><td><code class="inline">201 Created</code> + the created task</td></tr>
+<tr><td><code class="inline">GET /tasks/7</code></td><td>none</td><td><code class="inline">200</code> + one task, or <code class="inline">404</code> if unknown</td></tr>
+</table>
+<p>Note <code class="inline">201</code>, not <code class="inline">200</code>, for a creation — statuses are part of the menu, and clients branch on them.</p>
+
+<h2>3 · Live demo: stringify, parse, break it (5 min)</h2>
+<p>Create <code class="inline">json-demo.mjs</code> — feel the text/code boundary with your own hands:</p>
+<pre>// file: json-demo.mjs
+const task = { id: 7, title: "Learn JSON", done: false };
+const text = JSON.stringify(task);
+console.log("sent as text:", text);
+console.log("back to object:", JSON.parse(text));
+try {
+  JSON.parse('{"title":"oops",}');
+} catch (err) {
+  console.log("broken JSON says:", err.message.split("\n")[0]);
+}</pre>
+<pre>node json-demo.mjs
+<span class="c"># expected:
+# sent as text: {"id":7,"title":"Learn JSON","done":false}
+# back to object: { id: 7, title: 'Learn JSON', done: false }
+# broken JSON says: Expected double-quoted property name in JSON ... (trailing comma!)</span></pre>
+<p>Why it works: the network only carries <em>text</em> — <code class="inline">stringify</code> packs your object into text, <code class="inline">parse</code> unpacks it. The error message is your proof that rule 2 is enforced by the parser, not by opinion.</p>
+
+<h2>4 · How this fits TaskFlow</h2>
+<p>That three-line menu above <em>is</em> TaskFlow v1. Module 3 hand-builds it with raw Node, Module 4 rebuilds it properly in Express with Zod validation (rejecting off-menu shapes with <code class="inline">400</code>), Module 7 publishes it as OpenAPI docs. Every module references this same contract — learn to read it now and you'll never be lost later.</p>
+
+<h2>5 · Common mistakes</h2>
+<div class="callout"><strong>“Single quotes / trailing comma.”</strong> JavaScript objects allow them; JSON forbids them. Fix: when hand-writing JSON, use double quotes and no trailing comma — or better, always generate it with <code class="inline">JSON.stringify</code>.</div>
+<div class="callout"><strong>“Dates stayed Dates.”</strong> <code class="inline">JSON.stringify({d: new Date()})</code> sends an ISO <em>string</em>; parsing won't revive a Date. Fix: agree (in the contract!) on ISO strings and convert explicitly on receipt.</div>
+<div class="callout warn"><strong>“200 for everything.”</strong> Creation returned <code class="inline">200</code> so the frontend can't tell “created” from “already there”. Fix: <code class="inline">201</code> on create, <code class="inline">204</code> on delete with no body, <code class="inline">404</code> on unknown id — statuses carry meaning.</div>
+
+<h2>6 · Practice exercise</h2>
+<ol class="steps">
+<li>On paper, write the contract for <code class="inline">POST /tasks</code>: required request keys, one example request, one example <code class="inline">201</code> reply, and two ways it can fail (with statuses).</li>
+<li>Turn your example reply into a JS object in a scratch file, <code class="inline">stringify</code> it, <code class="inline">parse</code> it back, and confirm the round trip is identical.</li>
+<li>Deliberately break the text (trailing comma), parse it, and copy the exact error message under your contract.</li>
+</ol>
+<p><em>Done means:</em> one contract block + one passing round trip + one real parser error quoted verbatim.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="a" data-why="JSON allows only double quotes — single quotes are a syntax error.">
+<p>1. Which key spelling is valid?</p>
+<button data-key="a">Double-quoted key names</button>
+<button data-key="b">Single-quoted key names</button>
+<button data-key="c">Unquoted short key names</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="stringify packs objects into text for sending; parse unpacks text received.">
+<p>2. What does JSON.stringify do?</p>
+<button data-key="a">Validates email addresses</button>
+<button data-key="b">Packs objects into text</button>
+<button data-key="c">Queries database tables</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="an endpoint is the full deal: method, path, shapes, and statuses.">
+<p>3. What defines one endpoint?</p>
+<button data-key="a">Server brand and version</button>
+<button data-key="b">Database host and port</button>
+<button data-key="c">Method path shapes status</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="201 Created is the contract's way of saying a new thing now exists.">
+<p>4. Which status means created?</p>
+<button data-key="a">201 Created for new item</button>
+<button data-key="b">404 Missing unknown item</button>
+<button data-key="c">500 Server broke badly</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>7 · Summary</h2>
+<div class="callout why">You now speak contract: <strong>JSON (six rules) carries the data; an endpoint (method + path + shapes + statuses) promises the deal</strong>. Blank screens become diffs against the menu. Next: the Module 1 checkpoint — draw the full request lifecycle from memory and earn the glossary.</div>
+
+<div class="callout">
+<strong>Primary source:</strong> <a href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Scripting/JSON">MDN — Working with JSON</a> (the only page you need).
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0003-urls-localhost-and-ports.html">← 0003 URLs + ports</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Next: Module 1 checkpoint (0005) — then Module 2 begins: Node fundamentals.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: request <code class="inline">{"title":"…"}</code> (title required, non-empty string); 201 reply <code class="inline">{"id":8,"title":"…","done":false}</code>; failures: missing/empty title → <code class="inline">400</code> with error object; wrong content-type → <code class="inline">415</code>. Round trip must be deep-equal. Parser error must quote “Expected double-quoted property name” (V8 wording).</p>
+<p>Quiz: 1a, 2b, 3c, 4a. Watch for: “JSON = JavaScript object” — correct with stringify/parse boundary + dropped undefined demo.</p>
+</details>
+
+<footer><strong>Lesson 0004</strong> · Module 1 · JSON + API contracts · Sources: <a href="https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Scripting/JSON">MDN JSON</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

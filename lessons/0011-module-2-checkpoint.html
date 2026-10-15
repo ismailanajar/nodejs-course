@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0011 — Module 2 Checkpoint: Gate to Servers</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Module 2 checkpoint: redraw your CLI program from memory, triage outputs, live rebuild drill — the gate to servers.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0011-module-2-checkpoint.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0011-module-2-checkpoint.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0011 — Module 2 Checkpoint: Gate to Servers">
+<meta property="og:description" content="Module 2 checkpoint: redraw your CLI program from memory, triage outputs, live rebuild drill — the gate to servers.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0011 — Module 2 Checkpoint: Gate to Servers">
+<meta name="twitter:description" content="Module 2 checkpoint: redraw your CLI program from memory, triage outputs, live rebuild drill — the gate to servers.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0011 — Module 2 Checkpoint: Gate to Servers", "description": "Module 2 checkpoint: redraw your CLI program from memory, triage outputs, live rebuild drill — the gate to servers.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0010-async-and-event-loop.html">← 0010</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Checkpoint</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 2 · CHECKPOINT · GATE TO SERVERS</p>
+<h1>Prove the CLI <span class="u-stroke">is yours</span></h1>
+<p class="subtitle">One sitting, one win: you redraw your whole program from memory — then Module 3 makes it listen.</p>
+<div class="meta">
+<span>⏱ 40–50 min</span><span>Prerequisites: Lessons 0006–0010</span><span>Objectives: retrieve · triage · gate</span>
+</div>
+</header>
+
+<div class="callout why"><strong>Same deal as 0005:</strong> you draw first, compare second. Cover each chart, reproduce it blank-page, then uncover and grade with the rubric. The struggle installs storage strength — Module 3 assumes everything below is reflex.</div>
+
+<h2>0 · Your Module 2 journey on one chart</h2>
+<div class="mermaid">journey
+  title Module 2 — what you built
+  section 0006 Run
+    Run scripts with argv: 4: You
+    Feel the missing DOM: 3: You
+  section 0007 Remember
+    Read-modify-write cycle: 5: You
+    Route add/list/done: 4: You
+  section 0008 Borrow
+    Manifest plus lock: 4: You
+    Split modules, nanoid: 3: You
+  section 0009 Behave
+    Env dials, kind errors: 4: You
+  section 0010 Overlap
+    Predict stare correctly: 5: You
+  section 0011 Today
+    Redraw it all blank: 5: You
+</div>
+<p class="diagram-cap"><strong>Chart 23 — Journey.</strong> Effort ratings, not grades. Anything shaky → re-open that lesson before the exercises.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>journey
+  title Module 2 — what you built
+  ...</pre>
+</details>
+
+<h2>1 · Cover-and-draw #1: your program's full map</h2>
+<p><strong>Blank page.</strong> Draw every piece of TaskFlow CLI and every arrow between them — terminal, router, db module, file, registry, env. Then diff:</p>
+<div class="mermaid">flowchart LR
+  subgraph YOU["YOU + machine"]
+    T["terminal words<br/>npm run add -- ..."]
+    E["env dials<br/>TASKS_FILE=..."]
+  end
+  subgraph PROJ2["project folder"]
+    R["tasks.mjs router<br/>argv → branch"]
+    D2["db.mjs<br/>load / save"]
+    PJ2["package.json + lock<br/>manifest + receipt"]
+  end
+  PAN["pantry<br/>nanoid + node: built-ins"]
+  J2["tasks.json<br/>the truth"]
+  T --> R
+  E --> D2
+  R --> D2
+  R --> PAN
+  D2 --> J2
+  PJ2 -.->|"declares"| PAN
+</div>
+<p class="diagram-cap"><strong>Chart 24 — Whole-program map.</strong> Seven boxes, six arrows. Missing the pantry or the dial = re-read 0008/0009.</p>
+<details><summary><strong>Source + grading (click)</strong></summary>
+<p>Full marks = 7 boxes + 6 arrows + the words argv, load/save, truth, receipt all present. The dotted arrow (manifest declares pantry) is the one everyone forgets — it's the most-asked interview shape of the three.</p>
+<pre>flowchart LR
+  T["terminal"] --> R["router"] --> D2["db"] --> J2["tasks.json"]
+  ...</pre>
+</details>
+
+<h2>2 · Cover-and-draw #2: read-modify-write + outcomes</h2>
+<div class="mermaid">flowchart TD
+  C2["command arrives"] --> LD["load: read + parse"]
+  LD -->|"missing"| E2["start empty"]
+  LD -->|"corrupt"| F2["firm sentence + exit 1"]
+  LD -->|"ok"| CH["change in memory"]
+  E2 --> CH
+  CH --> SV2["save: stringify + write"]
+  SV2 --> P2["print result + exit 0"]
+</div>
+<p class="diagram-cap"><strong>Chart 25 — Cycle with all three load outcomes.</strong> Lessons 0007 + 0009 fused: the happy path plus both sad paths.</p>
+<details><summary><strong>Source + grading (click)</strong></summary>
+<p>Full marks = all three load branches with correct responses (empty / sentence+1 / continue) + save-then-print order. Swapping save and print loses half — downstream parsers read stdout.</p>
+<pre>flowchart TD
+  C2["command"] --> LD["load"] --> CH["change"] --> SV2["save"] --> P2["print"]
+  ...</pre>
+</details>
+
+<h2>3 · CLI triage chart (sibling of chart 4)</h2>
+<div class="mermaid">flowchart TD
+  E3["CLI failed?!"] --> Q12{"What does<br/>output show?"}
+  Q12 -- "usage line" --> U["YOUR words wrong<br/>re-read help, fix argv"]
+  Q12 -- "error: ... corrupt" --> CR["data file broken<br/>fix or delete it"]
+  Q12 -- "no such task" --> ID["unknown id<br/>list first, copy exact id"]
+  Q12 -- "stack trace" --> ST["unhandled bug<br/>which chart-25 step threw?"]
+</div>
+<p class="diagram-cap"><strong>Chart 26 — CLI triage.</strong> Four outputs, four verdicts. The last branch is the only one that means “my code has a hole”.</p>
+<details><summary><strong>Source + walkthrough (click)</strong></summary>
+<p>Runs: usage → you mistyped (check <code class="inline">--</code> under npm!). “no such task” → pasted id wrong (nanoid is exact). Stack trace → translate it: find the chart-25 step in the trace, add the missing guard — that's how 0009's friendly errors were born.</p>
+<pre>flowchart TD
+  E3["CLI failed?!"] --> Q12{"output?"}
+  ...</pre>
+</details>
+
+<h2>4 · Event loop, one breath</h2>
+<div class="mermaid">flowchart LR
+  Y2["your code<br/>one breath"] --> W2{"await I/O?"}
+  W2 -- No --> Y2
+  W2 -- Yes --> OS2["OS holds wait<br/>you sleep"]
+  OS2 --> DG["ding!"]
+  DG --> Y2
+</div>
+<p class="diagram-cap"><strong>Chart 27 — Loop pocket version.</strong> Four nodes carry the whole of lesson 0010: who sleeps (you), who waits (OS), who wakes (ding).</p>
+<details><summary><strong>Source + check (click)</strong></summary>
+<p>If you can narrate <code class="inline">stare.mjs</code> with this chart (“loop never yields → ding unheard → 1.5s silence”), the model is installed. If not, re-run both demos before continuing.</p>
+<pre>flowchart LR
+  Y2["your code"] --> W2{"await I/O?"} --> OS2["OS waits"] --> DG["ding!"] --> Y2</pre>
+</details>
+
+<h2>5 · Where Module 2 hours go</h2>
+<div class="mermaid">pie title Module 2 stuck-hours (illustrative, not data)
+  "argv off-by-one + missing --" : 30
+  "forgotten await save" : 30
+  "type:module + import paths" : 25
+  "real filesystem errors" : 15
+</div>
+<p class="diagram-cap"><strong>Chart 28 — Illustrative split.</strong> Teaching sketch: nearly everything was ceremony (argv, await, manifest) — the filesystem itself rarely bit. Servers keep the ceremony, automate the rest.</p>
+
+<h2>6 · Retrieval exercises (blank page, then check)</h2>
+<ol class="steps">
+<li><strong>Program redraw</strong> — chart 24 from memory, 7 boxes + 6 arrows (§1 rubric).</li>
+<li><strong>Cycle + triage</strong> — chart 25 from memory with all three branches; then verdict + fix for: (a) empty output on first <code class="inline">list</code>, (b) <code class="inline">no such task</code> after copy-paste, (c) 20-line trace on <code class="inline">add</code>.</li>
+<li><strong>Live drill</strong> — fresh folder: init, type module, db.mjs + tasks.mjs (add/list), one task added, file shown. No peeking at old code — only charts allowed.</li>
+<li><strong>Loop narration</strong> — explain <code class="inline">stare.mjs</code>'s silence using chart 27 in two sentences, out loud.</li>
+</ol>
+<p><em>Done means:</em> two sheets + one working mini-project + one spoken narration. When all pass, Module 3 is unlocked — your program stops exiting and starts listening.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="the file is reloaded every run — variables are just the workspace.">
+<p>1. Source of truth is?</p>
+<button data-key="a">RAM variables in code</button>
+<button data-key="b">Disk file each run</button>
+<button data-key="c">Terminal scrollback log</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="card plus receipt rebuild the pantry exactly on any machine.">
+<p>2. Fresh clone needs what?</p>
+<button data-key="a">Install from lock file</button>
+<button data-key="b">Copy pantry by hand</button>
+<button data-key="c">Rewrite imports all anew</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="yours start at index 2 — zero node, one file, two mine.">
+<p>3. First real arg lives?</p>
+<button data-key="a">At argv zero slot</button>
+<button data-key="b">At argv one slot</button>
+<button data-key="c">At argv two slot</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="only your function sleeps — the process keeps serving dings.">
+<p>4. During await, process?</p>
+<button data-key="a">Serves others meanwhile</button>
+<button data-key="b">Freezes solid until done</button>
+<button data-key="c">Drops all waiting tasks</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="usage lines and error sentences go to stderr with a nonzero verdict.">
+<p>4b. Misuse output goes where?</p>
+<button data-key="a">Stdout with exit zero</button>
+<button data-key="b">Stderr with exit one</button>
+<button data-key="c">Nowhere, crash Dump All</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>7 · Summary + gate to Module 3</h2>
+<div class="callout why">Module 2 is yours when: <strong>you map the whole program blind, run the cycle with all branches, triage any CLI output, and narrate the loop</strong>. Next: Module 3 — the program that doesn't exit. Ports, handlers, and your first reply over HTTP.</div>
+
+<div class="callout">
+<strong>Primary sources (re-read only misses):</strong> <a href="https://nodejs.org/en/learn/manipulating-files">Node files</a> · <a href="https://docs.npmjs.com/cli/v11/configuring-npm/package-json">npm package.json</a> · <a href="https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick">event loop</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0010-async-and-event-loop.html">← 0010 Event loop</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Module 3 starts at 0012 — your first listening server.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Ex2: (a) empty first list = correct, not failure (missing → empty). (b) id mismatch — list + copy exact (nanoid case-sensitive). (c) trace = unhandled hole: read trace for chart-25 step, add guard (usage/error/exit). Ex3 must show package.json with type module + scripts, tasks.json with one task. Ex4: “the loop never yields so the dinged timer waits; both lines print after 1.5s.”</p>
+<p>Quiz: 1b, 2a, 3c, 4a, 4b→b. Gate: ≥4/5 + live drill working = Module 3 unlocked.</p>
+</details>
+
+<footer><strong>Checkpoint 0011</strong> · Module 2 gate · 6 charts · Sources: Node files/npm/loop docs · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0008 — npm + Modules: Borrow Code Safely</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="npm, package.json and ES modules: manifest plus lockfile, three import flavors, nanoid IDs, and npm scripts for the TaskFlow CLI.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0008-npm-and-modules.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0008-npm-and-modules.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0008 — npm + Modules: Borrow Code Safely">
+<meta property="og:description" content="npm, package.json and ES modules: manifest plus lockfile, three import flavors, nanoid IDs, and npm scripts for the TaskFlow CLI.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0008 — npm + Modules: Borrow Code Safely">
+<meta name="twitter:description" content="npm, package.json and ES modules: manifest plus lockfile, three import flavors, nanoid IDs, and npm scripts for the TaskFlow CLI.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0008 — npm + Modules: Borrow Code Safely", "description": "npm, package.json and ES modules: manifest plus lockfile, three import flavors, nanoid IDs, and npm scripts for the TaskFlow CLI.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0007-files-taskflow-v0.html">← 0007</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0008</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 2 · NODE FUNDAMENTALS · LESSON 3</p>
+<h1>Borrow code <span class="u-stroke">without fear</span></h1>
+<p class="subtitle">One sitting, one win: your project has a manifest, a real dependency, and shortcuts — like every backend on earth.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Lesson 0007 (TaskFlow v0)</span><span>Objectives: manifest · install · import/export</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> v0's ids are <code class="inline">Date.now()</code> blobs you can't type, and every helper is copy-pasted. The world's already solved both — thousands of tiny reviewed packages exist. The skill isn't “write everything yourself”; it's <em>borrowing exact versions, on purpose, with one file saying what you took</em>.</div>
+
+<h2>1 · The mental model: ID card + pantry + receipt</h2>
+<div class="mermaid">flowchart LR
+  subgraph PROJ["your project folder"]
+    direction TB
+    PJ["package.json<br/>ID card + recipe"]
+    NM["node_modules/<br/>pantry (downloaded)"]
+    LK["package-lock.json<br/>exact receipt"]
+  end
+  REG["npm registry<br/>world's pantry shelf"] -->|"npm install<br/>exact versions"| NM
+  PJ -.->|"declares"| NM
+  LK -.->|"pins"| NM
+</div>
+<p class="diagram-cap"><strong>Chart 14 — The three files.</strong> You write the card, npm fills the pantry, the lock pins every jar's exact version.</p>
+<details><summary><strong>Source + rule (click)</strong></summary>
+<p>Rule: commit card + receipt, never the pantry (<code class="inline">node_modules</code> goes in <code class="inline">.gitignore</code> — anyone rebuilds it with <code class="inline">npm install</code>). Deleting the pantry is always safe; deleting the lock is never casual. Sources: <a href="https://docs.npmjs.com/cli/v11/commands/npm-install">npm install</a>, <a href="https://docs.npmjs.com/cli/v11/configuring-npm/package-json">package.json docs</a>.</p>
+<pre>flowchart LR
+  REG["npm registry"] -->|"npm install"| NM["node_modules/"]
+  ...</pre>
+</details>
+
+<h2>2 · Modules: split files, keep names honest</h2>
+<div class="mermaid">flowchart LR
+  DB["db.mjs<br/>exports load, save"] -->|"import { load, save }"| APP["tasks.mjs<br/>the CLI router"]
+  EXT["nanoid (registry)<br/>exports nanoid"] -->|"import { nanoid }"| APP
+  BUILT["node:fs/promises<br/>built-in"] -->|"import { readFile }"| DB
+</div>
+<p class="diagram-cap"><strong>Chart 15 — Who imports whom.</strong> Arrows point from the user to the provider; three import flavors, one syntax.</p>
+<details><summary><strong>Source + the three flavors (click)</strong></summary>
+<p>① relative (<code class="inline">"./db.mjs"</code> — your own split files, extension mandatory) ② bare (<code class="inline">"nanoid"</code> — pantry packages) ③ built-in (<code class="inline">"node:fs/promises"</code> — the <code class="inline">node:</code> prefix proves it ships with Node). One syntax, three addresses. Needs <code class="inline">"type": "module"</code> in package.json — without it, <code class="inline">import</code> is a syntax error. Source: <a href="https://nodejs.org/api/esm.html">Node ESM docs</a>.</p>
+<pre>flowchart LR
+  DB["db.mjs"] -->|"import"| APP["tasks.mjs"]
+  ...</pre>
+</details>
+
+<h2>3 · Install flow: what npm actually does</h2>
+<div class="mermaid">sequenceDiagram
+  participant Y as You
+  participant N as npm install nanoid
+  participant R as registry
+  participant P as project
+  Y->>N: npm install nanoid
+  N->>R: fetch metadata + tarball
+  R->>N: exact version bytes
+  N->>P: write node_modules/ + lock entry
+  N->>P: add "nanoid": "^5.x" to package.json
+</div>
+<p class="diagram-cap"><strong>Chart 16 — One install, five hops.</strong> The <code class="inline">^</code> means “compatible updates allowed”; the lock records the exact one chosen.</p>
+<details><summary><strong>Source + reading versions (click)</strong></summary>
+<p><code class="inline">^5.3.7</code> = any 5.x ≥ 5.3.7 (fixes + features, no breaking changes — that's the semver promise). The lock froze 5.3.7 exactly, so teammates install <em>your</em> bytes, not “whatever's newest”. Full control, zero surprises.</p>
+<pre>sequenceDiagram
+  participant Y as You
+  participant N as npm
+  ...</pre>
+</details>
+
+<h2>4 · Live demo: TaskFlow v0 grows up (8 min)</h2>
+<p>In your project folder (fresh or v0's), run the setup once:</p>
+<pre>npm init -y
+<span class="c"># creates package.json with defaults — then edit two fields:</span>
+npm pkg set type=module
+npm pkg set scripts.add='node tasks.mjs add' scripts.list='node tasks.mjs list'
+npm install nanoid
+<span class="c"># expected: added 1 package — check package.json + package-lock.json now exist</span></pre>
+<p>Split storage into <code class="inline">db.mjs</code>, slim the router, and swap ids to <code class="inline">nanoid</code> (short, typable, collision-proof):</p>
+<pre>// file: db.mjs
+import { readFile, writeFile } from "node:fs/promises";
+const FILE = new URL("./tasks.json", import.meta.url);
+export async function load() {
+  try { return JSON.parse(await readFile(FILE, "utf8")); }
+  catch { return []; }
+}
+export async function save(tasks) {
+  await writeFile(FILE, JSON.stringify(tasks, null, 2));
+}</pre>
+<pre>// file: tasks.mjs (router only — storage moved out)
+import { nanoid } from "nanoid";
+import { load, save } from "./db.mjs";
+const [cmd, ...rest] = process.argv.slice(2);
+if (cmd === "add") {
+  const title = rest.join(" ").trim();
+  if (!title) { console.error('usage: npm run add -- "Buy milk"'); process.exit(1); }
+  const tasks = await load();
+  const task = { id: nanoid(8), title, done: false };
+  await save([...tasks, task]);
+  console.log(JSON.stringify(task));
+} else if (cmd === "list") {
+  for (const t of await load()) console.log(`${t.done ? "[x]" : "[ ]"} ${t.id} ${t.title}`);
+} else if (cmd === "done") {
+  const t = (await load()).find((t) => t.id === rest[0]);
+  if (!t) { console.error("no such task"); process.exit(1); }
+  const tasks = await load(); tasks.find((x) => x.id === t.id).done = true;
+  await save(tasks); console.log(JSON.stringify({ ...t, done: true }));
+} else { console.log('usage: npm run add -- "TITLE" | npm run list'); }</pre>
+<pre>npm run add -- "Buy milk"
+npm run list
+<span class="c"># expected: [ ] xK9mQ2vZ Buy milk — short id, typable, committable</span></pre>
+<p>Why it works: <code class="inline">--</code> passes words through npm to your script (without it npm eats them); top-level <code class="inline">await</code> works because <code class="inline">type: module</code>; <code class="inline">done</code> from lesson 0007's exercise slots straight into the router.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>This folder shape — manifest + modules + scripts — is the seed of every backend you'll ever build. Module 3 adds a listening server file; Module 4 adds Express + Zod to the pantry. The <code class="inline">done</code> ids you paste today preview why databases use short serial keys (Module 5).</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Cannot use import statement.”</strong> Missing <code class="inline">"type": "module"</code>. Fix: <code class="inline">npm pkg set type=module</code> — then <code class="inline">import</code> works everywhere in the folder.</div>
+<div class="callout"><strong>“My args vanished under npm.”</strong> You ran <code class="inline">npm run add "Buy milk"</code> without <code class="inline">--</code>. Fix: <code class="inline">npm run add -- "Buy milk"</code> — the double dash forwards everything after it.</div>
+<div class="callout warn"><strong>“Committed node_modules.”</strong> Thousands of files, repo explodes. Fix: create <code class="inline">.gitignore</code> with <code class="inline">node_modules/</code> + <code class="inline">tasks.json</code> (dev data isn't code) — commit manifest + lock only.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Finish the split above (db.mjs + tasks.mjs + nanoid + scripts) starting from your v0 — or fresh, then re-add two tasks.</li>
+<li>Add a <code class="inline">rm ID</code> command: load → filter out → save; unknown ID → error + <code class="inline">exit(1)</code>.</li>
+<li>Paste: your <code class="inline">package.json</code>, the <code class="inline">ls</code>/tree of the folder (showing what you commit vs ignore), and one <code class="inline">list</code> output.</li>
+</ol>
+<p><em>Done means:</em> manifest + lock committed-mentally, pantry ignored, short ids, four working commands (add/list/done/rm). Send all three pastes — 0009 (env + errors, Module 2 checkpoint) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="a" data-why="card plus receipt rebuild the pantry exactly — the pantry itself is disposable.">
+<p>1. What do you commit?</p>
+<button data-key="a">Manifest plus lock file</button>
+<button data-key="b">Pantry with all modules</button>
+<button data-key="c">Dev data JSON files</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="bare names resolve to the pantry; ./ paths to your files; node: to built-ins.">
+<p>2. import "nanoid" finds what?</p>
+<button data-key="a">Built-in Node library</button>
+<button data-key="b">Your own split file</button>
+<button data-key="c">Pantry package by name</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="without type module, import is a syntax error in .js/.mjs scope.">
+<p>3. import fails — first fix?</p>
+<button data-key="a">Reinstall every package ache</button>
+<button data-key="b">Set type module flag</button>
+<button data-key="c">Rename all files to txt</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="the double dash forwards everything after it to your script.">
+<p>4. Args lost under npm — fix?</p>
+<button data-key="a">Add double dash first</button>
+<button data-key="b">Use global install path</button>
+<button data-key="c">Edit lock file by hand</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">You now borrow like a pro: <strong>manifest declares, lock pins, pantry stays ignored; three import flavors, one syntax; scripts + double-dash run your CLI</strong>. Next: env vars + errors — configuration without hardcoding, and failures with manners (Module 2 checkpoint).</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://docs.npmjs.com/cli/v11/configuring-npm/package-json">npm package.json</a> · <a href="https://nodejs.org/api/esm.html">Node ESM</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0007-files-taskflow-v0.html">← 0007 Files</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0009 (env vars + errors → Module 2 checkpoint) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: <code class="inline">else if (cmd === "rm") { const id = rest[0]; if (!id) { console.error("usage: npm run rm -- ID"); process.exit(1); } const tasks = await load(); if (!tasks.some((t) =&gt; t.id === id)) { console.error("no such task"); process.exit(1); } await save(tasks.filter((t) =&gt; t.id !== id)); console.log(`removed ${id}`); }</code> + script <code class="inline">"rm": "node tasks.mjs rm"</code>. .gitignore commits: package.json, package-lock.json, *.mjs committed; node_modules/, tasks.json ignored.</p>
+<p>Quiz: 1a, 2c, 3b, 4a. Watch for Q3a (“reinstall everything”) — the cargo-cult reflex; correct by deleting node_modules + reinstall once to prove the pantry is disposable.</p>
+</details>
+
+<footer><strong>Lesson 0008</strong> · Module 2 · npm + modules · Sources: <a href="https://docs.npmjs.com/">npm docs</a>, <a href="https://nodejs.org/api/esm.html">ESM</a> · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

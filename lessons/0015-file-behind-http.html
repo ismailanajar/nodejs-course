@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0015 — The File Behind the Rooms</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="File persistence behind HTTP: load per knock, PUT and DELETE, 204 replies, the honest last-write-wins race, complete CRUD.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0015-file-behind-http.html">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0015-file-behind-http.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0015 — The File Behind the Rooms">
+<meta property="og:description" content="File persistence behind HTTP: load per knock, PUT and DELETE, 204 replies, the honest last-write-wins race, complete CRUD.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0015 — The File Behind the Rooms">
+<meta name="twitter:description" content="File persistence behind HTTP: load per knock, PUT and DELETE, 204 replies, the honest last-write-wins race, complete CRUD.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0015 — The File Behind the Rooms", "description": "File persistence behind HTTP: load per knock, PUT and DELETE, 204 replies, the honest last-write-wins race, complete CRUD.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="0001-course-map.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0014-request-bodies-and-post.html">← 0014</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0015</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 3 · SERVER FROM SCRATCH · LESSON 4</p>
+<h1>The file <span class="u-stroke">behind</span> the rooms</h1>
+<p class="subtitle">One sitting, one win: tasks survive restarts, and your API speaks full CRUD — PUT and DELETE included.</p>
+<div class="meta">
+<span>⏱ 35–45 min</span><span>Prerequisites: Lesson 0014 (bodies)</span><span>Objectives: persist · PUT · DELETE · race</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Restart the 0014 server and creation evaporates — the menu works, the memory doesn't. Plus the menu is half-written: no way to change or remove a task. Today both gaps close: the file moves behind the rooms, and the guard learns two new verbs.</div>
+
+<h2>1 · The mental model: same cycle, new caller</h2>
+<div class="mermaid">flowchart LR
+  subgraph CLI2["CLI (lesson 0007)"]
+    A["argv"] --> C["load → change → save"]
+  end
+  subgraph HTTP2["HTTP (today)"]
+    K["knock"] --> C2["load → change → save"]
+  end
+  C --> F["tasks.json"]
+  C2 --> F
+</div>
+<p class="diagram-cap"><strong>Chart 38 — Same cycle, new caller.</strong> Chart 12 didn't change — only who triggers it. Reuse your <code class="inline">db.mjs</code> verbatim; that import is the whole lesson's first half.</p>
+<details><summary><strong>Source + rule (click)</strong></summary>
+<p>Rule: <strong>load per knock, save per mutation</strong> — never cache the array in a module variable (a restart/startup load goes stale the moment anything else writes). Reads (<code class="inline">GET</code>) load and skip save; writes load, change, save.</p>
+<pre>flowchart LR
+  A["argv/knock"] --> C["load → change → save"] --> F["tasks.json"]</pre>
+</details>
+
+<h2>2 · The honest race (why databases exist)</h2>
+<div class="mermaid">sequenceDiagram
+  participant A as knock A (slow write)
+  participant B as knock B (fast write)
+  participant F as tasks.json
+  A->>F: load v1
+  B->>F: load v1
+  B->>F: save v1+B
+  A->>F: save v1+A (B lost!)
+</div>
+<p class="diagram-cap"><strong>Chart 39 — Last-write-wins.</strong> Two overlapping writes, one victim. Single-user course? Invisible. Two friends at once? Real data loss.</p>
+<details><summary><strong>Source + stance (click)</strong></summary>
+<p>Stance: name it, don't fix it — file locks/queues are a rabbit hole; PostgreSQL (Module 5) solves it with transactions. The honest engineer says “correct for one user at a time” and means it. You'll quote this chart when someone asks “why not just files?”.</p>
+<pre>sequenceDiagram
+  participant A as slow knock
+  participant B as fast knock
+  participant F as file
+  ...</pre>
+</details>
+
+<h2>3 · Full building map</h2>
+<div class="mermaid">flowchart TD
+  G2["GET /health"] --> R200["200 { ok }"]
+  L2["GET /tasks (?done, ?limit)"] --> L200["200 list"]
+  P2["POST /tasks {title}"] --> P201["201 created"]
+  U2["PUT /tasks/:id {title?, done?}"] --> U200["200 updated / 404"]
+  D3["DELETE /tasks/:id"] --> D204["204 empty / 404"]
+  X2["anything else"] --> X404["404 no such room"]
+</div>
+<p class="diagram-cap"><strong>Chart 40 — TaskFlow HTTP v1, complete.</strong> Six branches, five statuses. This chart <em>is</em> the project milestone — implement exactly it.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>flowchart TD
+  G2["GET /health"] --> R200["200"]
+  ...</pre>
+</details>
+
+<h2>4 · Live demo: wire + verbs (12 min)</h2>
+<p>Import <code class="inline">db.mjs</code> (lesson 0009's env-dial version) and add the two verbs. Replace the in-memory array usage:</p>
+<pre>// top of server.mjs: swap `const tasks = [...]` for:
+import { load, save } from "./db.mjs";
+import { nanoid } from "nanoid";
+
+// GET /tasks branch becomes:
+if (req.method === "GET" &amp;&amp; pathname === "/tasks") {
+  const tasks = await load();
+  ...same filter, return send(res, 200, list);
+}
+// POST branch: replace tasks.push with:
+  const tasks = await load();
+  const task = { id: nanoid(8), title: body.title.trim(), done: false };
+  await save([...tasks, task]);
+  return send(res, 201, task);
+
+// NEW branches (before the 404 trapdoor):
+const parts = pathname.split("/").filter(Boolean);
+if (parts[0] === "tasks" &amp;&amp; parts.length === 2) {
+  const tasks = await load();
+  const task = tasks.find((t) =&gt; t.id === parts[1]);
+  if (!task) return send(res, 404, { error: "unknown task" });
+  if (req.method === "PUT") {
+    let body;
+    try { body = JSON.parse(await readBody(req)); }
+    catch { return send(res, 400, { error: "body must be valid JSON" }); }
+    if (body.title !== undefined) {
+      if (typeof body.title !== "string" || !body.title.trim())
+        return send(res, 400, { error: "title must be a non-empty string" });
+      task.title = body.title.trim();
+    }
+    if (body.done !== undefined) {
+      if (typeof body.done !== "boolean")
+        return send(res, 400, { error: "done must be a boolean" });
+      task.done = body.done;
+    }
+    await save(tasks);
+    return send(res, 200, task);
+  }
+  if (req.method === "DELETE") {
+    await save(tasks.filter((t) =&gt; t.id !== task.id));
+    res.writeHead(204);
+    return res.end();
+  }
+}</pre>
+<pre># full lifecycle drill (server restarted, LEFT terminal):
+T=$(node -e "const r = await fetch('http://localhost:3000/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:'Persist me'})}); console.log((await r.json()).id)")
+node -e "console.log(await (await fetch('http://localhost:3000/tasks')).json())"
+node -e "console.log(await (await fetch('http://localhost:3000/tasks/$T',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({done:true})})).json())"
+node -e "console.log(await (await fetch('http://localhost:3000/tasks/$T',{method:'DELETE'})).status)"
+<span class="c"># expected: 204 — then restart server, GET /tasks → [] (deleted, and it STAYED deleted)</span></pre>
+<p>Why it works: <code class="inline">204</code> means “done, nothing to say” — no body, so no <code class="inline">send</code> (raw <code class="inline">writeHead+end</code>). PUT is partial here (only sent keys change) — full-replace vs patch is a design choice your contract should state; ours states partial.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>HTTP v1 is done: restart-proof CRUD over the network with validated input and honest statuses. Module 4 replays this entire building in Express — same branches, tenth of the hand-rolled code — and you'll feel precisely what the framework earns. The race (chart 39) waits for Postgres to resolve it.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Cached array at top of file.”</strong> <code class="inline">const tasks = await load()</code> once at startup — writes from other processes invisible, restarts required. Fix: load inside every branch (fresh truth per knock).</div>
+<div class="callout"><strong>“204 with a body.”</strong> Sent JSON alongside 204 — clients ignore it by spec, confusion follows. Fix: 204 ends empty, always.</div>
+<div class="callout warn"><strong>“PUT replaces vs patches — picked silently.”</strong> Ours patches (partial); a teammate assumes replace. Fix: one contract sentence (“PUT here is partial”) — ambiguity about verbs is a 400-series bug factory.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Wire the file + add PUT/DELETE; run the full lifecycle drill above; paste all four outputs.</li>
+<li>Restart mid-list: add a task, restart server, <code class="inline">GET /tasks</code> — paste proof of survival.</li>
+<li>Draw chart 39's race with your own two knocks labeled (which write wins, which data dies).</li>
+</ol>
+<p><em>Done means:</em> four drill pastes + survival paste + one race sketch. Module 3 checkpoint (0016) is next — the gate to Express.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="fresh truth per knock — a startup snapshot goes stale on any outside write.">
+<p>1. When to load file?</p>
+<button data-key="a">Once at startup only</button>
+<button data-key="b">Per knock every time</button>
+<button data-key="c">Never, cache in memory</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="204 means done with nothing to say — bodies are forbidden.">
+<p>2. DELETE success replies?</p>
+<button data-key="a">200 plus deleted item</button>
+<button data-key="b">201 plus created copy</button>
+<button data-key="c">204 with empty body</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="overlapping read-modify-write cycles silently drop one writer's change.">
+<p>3. File race loses what?</p>
+<button data-key="a">One writer's change set</button>
+<button data-key="b">Whole file every time</button>
+<button data-key="c">Nothing, OS merges writes</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="state which keys change — silent replace-vs-patch splits teams.">
+<p>4. PUT contract must state?</p>
+<button data-key="a">Server brand and model</button>
+<button data-key="b">Partial or full replace</button>
+<button data-key="c">Database host and port</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">HTTP v1 stands: <strong>file behind every room, load per knock, full CRUD with 200/201/204/400/404, last-write-wins named honestly</strong>. Next: the Module 3 checkpoint — then Express earns its keep.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://nodejs.org/api/http.html">Node.js — http</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods/PUT">MDN — PUT</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods/DELETE">MDN — DELETE</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0014-request-bodies-and-post.html">← 0014 Bodies</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Module 3 checkpoint (0016) comes next — gate to Express.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: drill outputs — created id, list with 1 task, updated <code class="inline">done:true</code>, <code class="inline">204</code>; post-restart list <code class="inline">[]</code> (or remaining tasks if more added — key point: deletion persisted). Race sketch must label load-load-save-save order and name the loser.</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “cache for speed” — correct: correctness first, caching is Module 5+ with invalidation.</p>
+</details>
+
+<footer><strong>Lesson 0015</strong> · Module 3 · File behind HTTP · Sources: <a href="https://nodejs.org/api/http.html">http</a>, MDN PUT/DELETE · Back to <a href="0001-course-map.html">course map</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>
