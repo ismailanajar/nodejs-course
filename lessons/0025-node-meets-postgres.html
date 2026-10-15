@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0025 — Node Meets Postgres: Pools and Parameters</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Node meets Postgres: shared pools, $N parameterized queries that kill injection, and migration chains.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0025-node-meets-postgres.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0025 — Node Meets Postgres: Pools and Parameters">
+<meta property="og:description" content="Node meets Postgres: shared pools, $N parameterized queries that kill injection, and migration chains.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0025-node-meets-postgres.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0025 — Node Meets Postgres: Pools and Parameters">
+<meta name="twitter:description" content="Node meets Postgres: shared pools, $N parameterized queries that kill injection, and migration chains.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0025 — Node Meets Postgres: Pools and Parameters", "description": "Node meets Postgres: shared pools, $N parameterized queries that kill injection, and migration chains.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0024-relations-and-joins.html">← 0024</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0025</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 5 · DATABASES + SQL · LESSON 4</p>
+<h1>Pools and <span class="u-stroke">parameters</span></h1>
+<p class="subtitle">One sitting, one win: your API reads Postgres with injection-proof queries over a shared pool.</p>
+<div class="meta">
+<span>⏱ 35–45 min</span><span>Prerequisites: Lesson 0024 (schema lives)</span><span>Objectives: pool · $1 · migrations</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> SQL is text — and text built by gluing user input is a loaded weapon (<code class="inline">' OR '1'='1</code> logs in as anyone). Plus opening a fresh database connection per knock costs ~30ms of handshake. Two mechanisms fix both: never concatenate input, never handshake twice.</div>
+
+<h2>1 · The mental model: taxi fleet, sealed envelopes</h2>
+<div class="mermaid">flowchart LR
+  subgraph POOL["pool (fleet)"]
+    C1["conn 1"]:::c
+    C2["conn 2"]:::c
+    C3["conn 3"]:::c
+  end
+  K5["knocks"] -->|"borrow → return"| POOL
+  POOL --> DB6[("Postgres")]
+  classDef c fill:#fff,stroke:#111113,stroke-width:2px
+</div>
+<p class="diagram-cap"><strong>Chart 75 — Fleet, not ownership.</strong> Knocks borrow a ready connection and return it; handshakes happen once at startup. Ten fleet cars serve hundreds of sequential riders.</p>
+<details><summary><strong>Source + sizing (click)</strong></summary>
+<p>Create one <code class="inline">Pool</code> at startup, share it, never close per request. Size ≈ CPU cores × 2 for this course (defaults fine); exhaustion surfaces as timeouts, not errors — the cue to look at slow queries, not bigger pools. Source: <a href="https://node-postgres.com/">node-postgres docs</a>.</p>
+<pre>const pool = new Pool({ connectionString: process.env.DATABASE_URL });</pre>
+</details>
+
+<h2>2 · Parameters: code and data travel separately</h2>
+<div class="mermaid">flowchart TD
+  BAD["glue: `... id='${id}'`<br/>input BECOMES code → injection"]
+  GOOD["parameter: WHERE id=$1, [id]<br/>input stays DATA → safe"]
+  GOOD --> DB7[("plan once<br/>values bound later")]
+</div>
+<p class="diagram-cap"><strong>Chart 76 — The only rule.</strong> <code class="inline">$1, $2…</code> mark holes; the values array fills them as pure data. User text can never become SQL again — injection becomes unrepresentable.</p>
+<details><summary><strong>Source + demo wound (click)</strong></summary>
+<p>Glue <code class="inline">id = 'x' OR '1'='1</code> into text and the WHERE matches everything (login bypass, data dump). Parameterize the same input and Postgres compares the literal weird string — zero rows, correct. This one habit is 90% of backend data security.</p>
+<pre>pool.query("SELECT * FROM tasks WHERE id = $1", [id]); -- safe, always</pre>
+</details>
+
+<h2>3 · Migrations run the chain</h2>
+<div class="mermaid">sequenceDiagram
+  participant D as deploy/start
+  participant M as migrate.mjs
+  participant T as applied table
+  participant F as db/*.sql
+  D->>M: run on boot
+  M->>T: which numbers applied?
+  M->>F: run missing ones, in order
+  M->>T: record new numbers
+</div>
+<p class="diagram-cap"><strong>Chart 77 — Chain runner.</strong> Files apply once, in order, tracked in the database itself — every environment converges to the same schema.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>migrate.mjs: read db/NNN_*.sql → skip applied → run rest in one transaction each</pre>
+</details>
+
+<h2>4 · Live demo: wired API (12 min)</h2>
+<pre>npm install pg
+<span class="c"># DATABASE_URL dial (lesson 0009's rule, higher stakes — never commit the real one):</span>
+<span class="c"># PowerShell: $env:DATABASE_URL="postgresql://postgres:devpw@localhost:5432/taskflow"</span></pre>
+<p>Swap <code class="inline">db.mjs</code> storage (interface unchanged — services don't notice):</p>
+<pre>// file: db.mjs (Postgres edition — same exports: load/save stay for CLI compat)
+import pg from "pg";
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+export const query = (text, params) =&gt; pool.query(text, params);
+// services now use query() — e.g. list:
+export async function listTasks({ done, limit = 10, offset = 0 }) {
+  const conds = [], params = [];
+  if (done !== undefined) { params.push(done === "true"); conds.push(`done = $${params.length}`); }
+  const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
+  params.push(limit, offset);
+  const { rows } = await query(
+    `SELECT * FROM tasks ${where} ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params);
+  return rows;
+}</pre>
+<pre>node -e "const {query} = await import('./db.mjs'); console.log((await query('SELECT count(*) AS n FROM tasks')).rows)"
+<span class="c"># expected: [ { n: '3' } ] — counts come back as TEXT (pg quirk: parse numerics yourself)</span>
+node -e "const {query} = await import('./db.mjs'); console.log((await query(\"SELECT * FROM tasks WHERE id = \$1\", [\"x' OR '1'='1\"])).rows)"
+<span class="c"># expected: [] — the attack string compared literally. Injection: dead on arrival.</span></pre>
+<p>Why it works: placeholders are positional (<code class="inline">$1</code> = first array item); dynamic SQL still builds <em>structure</em> (WHERE/ORDER from allowlists) while <em>values</em> always ride parameters. ORDER BY direction must come from an allowlist (<code class="inline">asc/desc</code> enum) — never a parameter (identifiers can't be bound).</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Services now speak Postgres; Zod photos (0019) guard entrances, CHECKs guard the building, parameters guard the wire — three walls, no gaps. 0026 Prisma generates these sentences from models; the pool, the dial, and the chain stay exactly as built here.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“New Pool per request.”</strong> Handshake storm, port exhaustion. Fix: one pool per process, created at startup, shared everywhere.</div>
+<div class="callout"><strong>“Interpolated ORDER BY.”</strong> <code class="inline">ORDER BY ${sort}</code> — identifiers can't bind, injection reopens. Fix: allowlist map (<code class="inline">{title:'title',created:'created_at'}[sort] ?? 'created_at'</code>).</div>
+<div class="callout warn"><strong>“Count is a string?!”</strong> pg returns numerics/ints as text (precision safety). Fix: <code class="inline">Number(row.n)</code> at the boundary — or set pg types parsers once, deliberately.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Install pg; set the dial; convert list + by-id + create to parameterized queries; paste a filtered list + the injection attempt returning [].</li>
+<li>Write <code class="inline">db/seed.sql</code> (demo user/project/tasks, idempotent via <code class="inline">ON CONFLICT DO NOTHING</code>); run twice — paste “second run changes nothing” proof.</li>
+<li>Break it once: interpolate one value deliberately in a scratch file, attack it, paste the leak — then delete the file. Know the wound by touching it.</li>
+</ol>
+<p><em>Done means:</em> three conversions + seed idempotence + one witnessed leak (in scratch only). Lesson 0026 (Prisma, earned) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="one fleet at startup, borrowed per knock — handshakes happen once.">
+<p>1. Pool lifetime is?</p>
+<button data-key="a">Per request, then close</button>
+<button data-key="b">Per process, shared fleet</button>
+<button data-key="c">Per query, fresh connect</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="holes bind pure data — user text can never become SQL.">
+<p>2. $1 values travel?</p>
+<button data-key="a">Glued into SQL text</button>
+<button data-key="b">Via shell escaping tricks</button>
+<button data-key="c">As data, never code</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="identifiers can't bind — only allowlisted structure is safe.">
+<p>3. ORDER BY direction from?</p>
+<button data-key="a">Allowlist map, never input</button>
+<button data-key="b">Raw user string direct</button>
+<button data-key="c">Parameter $N binding slot</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="migrations apply once in order, tracked — environments converge.">
+<p>4. Migration chain gives?</p>
+<button data-key="a">Faster query planning time</button>
+<button data-key="b">Same schema every deploy</button>
+<button data-key="c">Free database backups daily</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Wired safely: <strong>one shared pool, $N parameters always, identifiers from allowlists, migrations as a tracked chain</strong>. Next: Prisma — the generator you've now earned.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://node-postgres.com/">node-postgres</a> · <a href="https://www.postgresql.org/docs/current/sql-prepare.html">PG prepared statements</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0024-relations-and-joins.html">← 0024 JOINs</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0026 (Prisma ORM, earned) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: by-id <code class="inline">SELECT * FROM tasks WHERE id=$1</code>; create <code class="inline">INSERT INTO tasks(id,title,project_id) VALUES($1,$2,$3) RETURNING *</code> (RETURNING hands back the row — no second query). Seed idempotence: primary-key conflicts + <code class="inline">ON CONFLICT DO NOTHING</code> → second run <code class="inline">INSERT 0 0</code>. Leak demo must show multi-row return on glued input.</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “ORMs remove SQL need” — correct: 0026 generates exactly these sentences; unreadable SQL means unreadable ORM.</p>
+</details>
+
+<footer><strong>Lesson 0025</strong> · Module 5 · Pools + parameters · Sources: <a href="https://node-postgres.com/">pg</a> · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

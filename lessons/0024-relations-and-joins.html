@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0024 — Tables That Know Each Other</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Relational tables: primary and foreign keys, one-to-many families, JOIN stitching, and deletion policies.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0024-relations-and-joins.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0024 — Tables That Know Each Other">
+<meta property="og:description" content="Relational tables: primary and foreign keys, one-to-many families, JOIN stitching, and deletion policies.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0024-relations-and-joins.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0024 — Tables That Know Each Other">
+<meta name="twitter:description" content="Relational tables: primary and foreign keys, one-to-many families, JOIN stitching, and deletion policies.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0024 — Tables That Know Each Other", "description": "Relational tables: primary and foreign keys, one-to-many families, JOIN stitching, and deletion policies.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0023-sql-by-hand.html">← 0023</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0024</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 5 · DATABASES + SQL · LESSON 3</p>
+<h1>Tables that <span class="u-stroke">know</span> each other</h1>
+<p class="subtitle">One sitting, one win: users own projects, projects hold tasks — linked by keys, read with JOINs.</p>
+<div class="meta">
+<span>⏱ 35–45 min</span><span>Prerequisites: Lesson 0023 (SQL verbs)</span><span>Objectives: FK · 1-N · JOIN</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> One tasks table can't say <em>whose</em> task it is — add a <code class="inline">owner_name</code> column and renames corrupt history, duplicates bloat, deletes orphan rows. Related facts belong in related tables, stitched by keys the database <em>enforces</em>. That's the “relational” in relational databases.</div>
+
+<h2>1 · The mental model: family registry</h2>
+<div class="mermaid">erDiagram
+  USERS ||--o{ PROJECTS : owns
+  PROJECTS ||--o{ TASKS : holds
+  USERS {
+    text id PK
+    text email UK
+  }
+  PROJECTS {
+    text id PK
+    text owner_id FK
+    text name
+  }
+  TASKS {
+    text id PK
+    text project_id FK
+    text title
+    boolean done
+  }
+</div>
+<p class="diagram-cap"><strong>Chart 72 — TaskFlow family.</strong> Lines are foreign keys: each task names its project, each project its owner. <code class="inline">||--o{</code> reads “one to many”.</p>
+<details><summary><strong>Source + FK law (click)</strong></summary>
+<p>Law: a foreign key value must exist (or be NULL) in the parent — inserting a task for project <code class="inline">nope</code> is refused <em>by the building</em>. Orphans become unrepresentable, not merely unlikely. Source: <a href="https://www.postgresql.org/docs/current/tutorial-fk.html">PG foreign keys</a>.</p>
+<pre>project_id TEXT REFERENCES projects(id) -- the stitch, enforced</pre>
+</details>
+
+<h2>2 · JOIN: ask across tables</h2>
+<div class="mermaid">flowchart LR
+  T2["tasks rows<br/>+ project_id"] --> J3["JOIN projects<br/>match the keys"]
+  J3 --> R3["wide rows<br/>task + project name together"]
+</div>
+<p class="diagram-cap"><strong>Chart 73 — Stitching on read.</strong> Storage stays split (no duplication); questions stitch on demand via key equality.</p>
+<details><summary><strong>Source + the ON sentence (click)</strong></summary>
+<p><code class="inline">... FROM tasks JOIN projects ON tasks.project_id = projects.id</code> — ON states the stitch (keys equal), WHERE still filters, and prefixes (<code class="inline">tasks.title</code>) disambiguate shared names. INNER JOIN drops unmatched rows; unmatched tasks (NULL project) need LEFT JOIN (0025's drill).</p>
+<pre>SELECT tasks.title, projects.name FROM tasks
+JOIN projects ON tasks.project_id = projects.id
+WHERE tasks.done = false;</pre>
+</details>
+
+<h2>3 · Deletes with family (ON DELETE)</h2>
+<div class="mermaid">flowchart TD
+  DP["DELETE project p1"] --> POL{"FK policy?"}
+  POL -- "RESTRICT (default)" --> REF["refused while tasks remain<br/>delete children first"]
+  POL -- "CASCADE" --> CAS["children deleted too<br/>powerful, deliberate"]
+</div>
+<p class="diagram-cap"><strong>Chart 74 — Deletion policies.</strong> Default says no (safe); cascade says yes-everything (explicit). Choose per relation, in the migration, on purpose.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>owner_id TEXT REFERENCES users(id) ON DELETE CASCADE</pre>
+</details>
+
+<h2>4 · Live demo: family + stitch (12 min)</h2>
+<p>Migration <code class="inline">db/002_family.sql</code> — new tables, then the stitch column (tasks already exists):</p>
+<pre>-- file: db/002_family.sql
+CREATE TABLE users (
+  id    TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE
+);
+CREATE TABLE projects (
+  id       TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name     TEXT NOT NULL
+);
+ALTER TABLE tasks ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE CASCADE;</pre>
+<pre>docker exec -it taskflow-db psql -U postgres -d taskflow -f - &lt; db/002_family.sql
+<span class="c"># PowerShell: Get-Content db/002_family.sql | docker exec -i taskflow-db psql -U postgres -d taskflow</span>
+docker exec -it taskflow-db psql -U postgres -d taskflow
+INSERT INTO users (id, email) VALUES ('u1', 'ada@example.com');
+INSERT INTO projects (id, owner_id, name) VALUES ('p1', 'u1', 'Course');
+INSERT INTO tasks (id, title, project_id) VALUES ('t1', 'Learn JOINs', 'p1');
+INSERT INTO tasks (id, title, project_id) VALUES ('t2', 'Orphan attempt', 'nope');
+<span class="c"># expected: violates foreign key "tasks_project_id_fkey" — the building refuses. Orphans: impossible.</span>
+SELECT tasks.title, projects.name FROM tasks
+JOIN projects ON tasks.project_id = projects.id;
+<span class="c"># expected: Learn JOINs | Course — stitched, no duplication stored</span>
+DELETE FROM users WHERE id = 'u1';
+SELECT * FROM projects; SELECT * FROM tasks;
+<span class="c"># expected: both empty — CASCADE carried the delete down the family. Deliberate power.</span></pre>
+<p>Why it works: UNIQUE on email prevents double registration (Module 6 leans on this); the demo ends empty by design — re-seed after, or keep a <code class="inline">db/seed.sql</code> (next lesson's habit).</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>The schema is final-shaped: users → projects → tasks. 0025 queries it from Node (parameterized JOINs); Prisma (0026) declares these three models and the client stitches with <code class="inline">include</code>. Auth (Module 6) hangs <em>ownership checks</em> on these same keys.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Name instead of id in child.”</strong> <code class="inline">project_name</code> on tasks — renames corrupt history. Fix: children carry parent <em>keys</em>, JOINs fetch names at read time.</div>
+<div class="callout"><strong>“JOIN multiplies rows, panic.”</strong> One task × one project = one row; but joining two 1-N children fans out (m×n). Fix: expect fan-out, aggregate or split queries — Prisma's include handles this for you later.</div>
+<div class="callout warn"><strong>“CASCADE everywhere.”</strong> Deleting a user vaporizes years of tasks — correct here, catastrophic for audit data. Fix: default RESTRICT; CASCADE only where “parent gone = children meaningless” is truly the rule.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Apply 002; seed 2 users × 2 projects × 5 tasks; paste a JOIN listing task + project + owner email (three tables, one query).</li>
+<li>Attempt one orphan INSERT + one duplicate email — paste both refusals naming their constraints.</li>
+<li>Write the “my open tasks” query for user u1 (JOINs + WHERE done=false + ORDER); paste rows.</li>
+</ol>
+<p><em>Done means:</em> three-table JOIN + two refusal pastes + one filtered query. Lesson 0025 (Node meets Postgres) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="FK values must exist in the parent — orphans are refused by the building.">
+<p>1. Foreign key enforces?</p>
+<button data-key="a">Faster JSON output still</button>
+<button data-key="b">Children match real parents</button>
+<button data-key="c">Unique emails per user</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="ON states key equality for stitching; WHERE still does the filtering.">
+<p>2. JOIN ON states?</p>
+<button data-key="a">Which rows to filter</button>
+<button data-key="b">Sort order of output</button>
+<button data-key="c">How tables stitch keys</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="restrict refuses while children remain; cascade carries deletion down deliberately.">
+<p>3. Default delete policy?</p>
+<button data-key="a">Refuse while kids remain</button>
+<button data-key="b">Delete whole family tree</button>
+<button data-key="c">Null all foreign keys</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="store keys, fetch names per read — renames then touch one row.">
+<p>4. Child stores parent?</p>
+<button data-key="a">Name copied for speed</button>
+<button data-key="b">Key, names via JOIN</button>
+<button data-key="c">Whole row as JSON</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Related data, related tables: <strong>FKs enforced, 1-N lines, JOINs stitch on read, deletion policies chosen, names via JOIN never copied</strong>. Next: Node meets Postgres — parameterized queries, pools, migrations.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://www.postgresql.org/docs/current/tutorial-fk.html">PG FKs</a> · <a href="https://www.postgresql.org/docs/current/tutorial-join.html">PG JOINs</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0023-sql-by-hand.html">← 0023 SQL verbs</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0025 (Node + pg: pools, parameters) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: <code class="inline">SELECT t.title, p.name, u.email FROM tasks t JOIN projects p ON t.project_id=p.id JOIN users u ON p.owner_id=u.id WHERE u.id='u1' AND t.done=false ORDER BY t.created_at;</code> Refusals must quote <code class="inline">tasks_project_id_fkey</code> and <code class="inline">users_email_key</code>.</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “JOIN stores combined rows” — correct: stitching happens per query, storage stays split.</p>
+</details>
+
+<footer><strong>Lesson 0024</strong> · Module 5 · Relations + JOINs · Sources: <a href="https://www.postgresql.org/docs/current/tutorial-fk.html">FK</a>, <a href="https://www.postgresql.org/docs/current/tutorial-join.html">JOIN</a> · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

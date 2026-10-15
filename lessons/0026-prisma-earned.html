@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0026 — Prisma, Earned: the Generator</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Prisma ORM after SQL: models generate migrations plus a typed client — sentences you can already read.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0026-prisma-earned.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0026 — Prisma, Earned: the Generator">
+<meta property="og:description" content="Prisma ORM after SQL: models generate migrations plus a typed client — sentences you can already read.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0026-prisma-earned.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0026 — Prisma, Earned: the Generator">
+<meta name="twitter:description" content="Prisma ORM after SQL: models generate migrations plus a typed client — sentences you can already read.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0026 — Prisma, Earned: the Generator", "description": "Prisma ORM after SQL: models generate migrations plus a typed client — sentences you can already read.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0025-node-meets-postgres.html">← 0025</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0026</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 5 · DATABASES + SQL · LESSON 5</p>
+<h1>Prisma, <span class="u-stroke">earned</span></h1>
+<p class="subtitle">One sitting, one win: models generate the SQL you can already read — and the client types every row.</p>
+<div class="meta">
+<span>⏱ 35–45 min</span><span>Prerequisites: Lessons 0022–0025</span><span>Objectives: schema · migrate · client</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Hand SQL is honest but verbose: every query re-spells columns, joins fan out manually, and refactors mean grep. An ORM doesn't remove SQL — it <em>generates the sentences you already understand</em> from models, and hands back typed objects. Skipping straight here makes magic; arriving now makes machinery.</div>
+
+<h2>1 · The mental model: blueprint → sentences</h2>
+<div class="mermaid">flowchart LR
+  M2["schema.prisma<br/>3 models, relations"] --> G2["prisma migrate<br/>SQL generated, applied"]
+  G2 --> TBL2[("tables<br/>same as 0024")]
+  M2 --> C4["Prisma Client<br/>typed functions"]
+  C4 --> APP2["services<br/>no SQL text"]
+</div>
+<p class="diagram-cap"><strong>Chart 78 — One blueprint, two outputs.</strong> Models generate <em>both</em> the tables (migrations) and the query functions (client) — drift between them becomes impossible.</p>
+<details><summary><strong>Source + what stays (click)</strong></summary>
+<p>Stays from 0025: the pool (Prisma manages its own), DATABASE_URL dial, migration-chain discipline, parameterized everything (generated code binds always). Goes: hand-written query text in services. Source: <a href="https://www.prisma.io/docs/orm/v7/core-concepts/supported-databases/postgresql">Prisma v7 Postgres</a> (course pins v7 stable; v8 is RC).</p>
+<pre>models → migrate (tables) + client (typed queries)</pre>
+</details>
+
+<h2>2 · Models mirror the family</h2>
+<div class="mermaid">erDiagram
+  User ||--o{ Project : owns
+  Project ||--o{ Task : holds
+</div>
+<p class="diagram-cap"><strong>Chart 79 — Same family, new handwriting.</strong> Chart 72 restated: relations declared once, enforced in SQL, stitched in code.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>model Task { id String @id; project Project @relation(...) ... }</pre>
+</details>
+
+<h2>3 · Queries become function calls</h2>
+<div class="mermaid">flowchart LR
+  Q5["prisma.task.findMany({<br/>where, orderBy, take, skip })"] --> SQL2["SELECT ... WHERE ...<br/>ORDER BY ... LIMIT ..."]
+  Q6["prisma.task.create({ data })"] --> SQL3["INSERT ...<br/>RETURNING *"]
+  Q7["include: { project: true }"] --> SQL4["JOIN, de-fanned<br/>into nested objects"]
+</div>
+<p class="diagram-cap"><strong>Chart 80 — Sentences you recognize.</strong> Every call compiles to the 0023–0024 sentences — read generated SQL in logs until you believe it, then trust the types.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>take/skip = LIMIT/OFFSET · include = JOIN · create = INSERT..RETURNING</pre>
+</details>
+
+<h2>4 · Live demo: generate + query (12 min)</h2>
+<pre>npm install prisma@7 @prisma/client@7
+npx prisma@7 init --datasource-provider postgresql
+<span class="c"># writes prisma/schema.prisma + .env (DATABASE_URL lives here now — gitignore it!)</span></pre>
+<p>Models (prisma/schema.prisma) — the family, declared:</p>
+<pre>model User {
+  id       String    @id @default(cuid())
+  email    String    @unique
+  projects Project[]
+}
+model Project {
+  id      String @id @default(cuid())
+  name    String
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+}
+model Task {
+  id        String   @id @default(cuid())
+  title     String
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}</pre>
+<pre>npx prisma@7 migrate dev --name family
+<span class="c"># generates db SQL + applies + regenerates client. Inspect prisma/migrations/ — real SQL, readable.</span>
+node -e "const {PrismaClient} = await import('@prisma/client'); const p = new PrismaClient();
+const u = await u.upsert({ where: { email: 'ada@example.com' }, update: {}, create: { email: 'ada@example.com' } });
+console.log(u); await p.\$disconnect()"
+<span class="c"># expected: { id: 'c...', email: 'ada@example.com' } — typed row, zero SQL typed</span></pre>
+<p>Why it works: <code class="inline">migrate dev</code> diffs models vs applied chain and writes the next migration file (chain discipline automated); the client is generated from the same models (drift impossible); <code class="inline">.env</code> holds the dial — confirm it's ignored before any commit.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Services swap <code class="inline">query(...)</code> for <code class="inline">prisma.task.*</code> — signatures unchanged, routes untouched (reason-test again). Module 6's users/sessions build on these models; raw SQL stays available (<code class="inline">$queryRaw</code>) for anything the client can't phrase — escape hatch, not lifestyle.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Committed .env.”</strong> Real DATABASE_URL in git history — rotate the password immediately. Fix: <code class="inline">.env</code> in <code class="inline">.gitignore</code> from minute one; <code class="inline">.env.example</code> with blanks committed instead.</div>
+<div class="callout"><strong>“Edited a migration.”</strong> Applied history rewritten → teammates' databases diverge. Fix: new model change = new <code class="inline">migrate dev</code>; Prisma authors the file, you review the SQL.</div>
+<div class="callout warn"><strong>“N+1 via include loops.”</strong> Fetching projects then tasks-per-project in a loop (N queries). Fix: one <code class="inline">include</code> (single JOIN) — watch query logs until the habit sticks.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Init Prisma; declare the three models; migrate; paste the generated tasks-table SQL (prove you can still read it).</li>
+<li>Convert <code class="inline">listTasks</code> to <code class="inline">findMany({where, orderBy, take, skip})</code>; knock filtered+paged list; paste envelope.</li>
+<li>Fetch one project with <code class="inline">include: { tasks: true }</code>; paste nested shape; state which JOIN it replaced.</li>
+</ol>
+<p><em>Done means:</em> migration SQL paste + converted list + nested include. Module 5 checkpoint (0027) is next — gate to auth.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="models generate both tables and typed queries — they cannot drift apart.">
+<p>1. Models generate what?</p>
+<button data-key="a">Only documentation pages</button>
+<button data-key="b">Tables plus typed client</button>
+<button data-key="c">Frontend components tree</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="migrate dev diffs models vs chain and authors the next SQL file.">
+<p>2. migrate dev does?</p>
+<button data-key="a">Deletes all table data</button>
+<button data-key="b">Seeds demo users daily</button>
+<button data-key="c">Authors next migration file</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="same 0023 sentences underneath — findMany is SELECT with filters.">
+<p>3. findMany compiles to?</p>
+<button data-key="a">SELECT WHERE ORDER LIMIT</button>
+<button data-key="b">Raw file system calls</button>
+<button data-key="c">Redis cache commands set</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="one JOIN beats N looped queries — watch the query log.">
+<p>4. Loop queries vs include?</p>
+<button data-key="a">Loops run much faster</button>
+<button data-key="b">Include joins once cleanly</button>
+<button data-key="c">Both cost exactly same</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Generator hired: <strong>models declare family, migrate authors SQL, client types rows, include replaces JOIN-wrangling, raw SQL stays as hatch</strong>. Next: the Module 5 checkpoint — then users get passwords (Module 6).</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://www.prisma.io/docs/orm/v7/core-concepts/supported-databases/postgresql">Prisma v7 Postgres</a> · <a href="https://www.prisma.io/docs/orm/v7/reference/prisma-client-reference">Client API</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0025-node-meets-postgres.html">← 0025 pg</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Module 5 checkpoint (0027) comes next — gate to auth.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: migration SQL must show <code class="inline">CREATE TABLE "Task"</code> with FK + CASCADE + defaults. Converted list keeps envelope math (take/skip from page/limit). Include paste shows <code class="inline">{ ..., tasks: [...] }</code> replacing the manual tasks↔projects JOIN.</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “Prisma replaces learning SQL” — correct with generated-SQL reading: unreadable SQL = misused ORM.</p>
+</details>
+
+<footer><strong>Lesson 0026</strong> · Module 5 · Prisma, earned · Sources: <a href="https://www.prisma.io/docs/orm/v7/core-concepts/supported-databases/postgresql">Prisma v7</a> · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

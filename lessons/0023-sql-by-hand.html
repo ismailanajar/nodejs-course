@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0023 — SQL by Hand: Ask Questions, Get Rows</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="SQL by hand: INSERT SELECT UPDATE DELETE plus WHERE ORDER BY LIMIT OFFSET — the four verbs and the list pipeline.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0023-sql-by-hand.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0023 — SQL by Hand: Ask Questions, Get Rows">
+<meta property="og:description" content="SQL by hand: INSERT SELECT UPDATE DELETE plus WHERE ORDER BY LIMIT OFFSET — the four verbs and the list pipeline.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0023-sql-by-hand.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0023 — SQL by Hand: Ask Questions, Get Rows">
+<meta name="twitter:description" content="SQL by hand: INSERT SELECT UPDATE DELETE plus WHERE ORDER BY LIMIT OFFSET — the four verbs and the list pipeline.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0023 — SQL by Hand: Ask Questions, Get Rows", "description": "SQL by hand: INSERT SELECT UPDATE DELETE plus WHERE ORDER BY LIMIT OFFSET — the four verbs and the list pipeline.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0022-why-files-retire.html">← 0022</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0023</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 5 · DATABASES + SQL · LESSON 2</p>
+<h1>Ask questions, <span class="u-stroke">get rows</span></h1>
+<p class="subtitle">One sitting, one win: you write the four SQL verbs and slice lists without touching application code.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Lesson 0022 (table exists)</span><span>Objectives: CRUD verbs · filter/sort/page</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> “Page 2 of unfinished tasks, newest first” in file-land means load-all, filter, sort, slice — hand-written every time, in every language, forever. In SQL it's one sentence the librarian optimizes. Four verbs + four clauses cover 90% of backend life; today you own them.</div>
+
+<h2>1 · The mental model: four verbs, one sentence shape</h2>
+<div class="mermaid">flowchart LR
+  I["INSERT<br/>add rows"] --> TBL[("tasks")]
+  S["SELECT<br/>read rows"] --> TBL
+  U["UPDATE<br/>change rows"] --> TBL
+  D["DELETE<br/>remove rows"] --> TBL
+</div>
+<p class="diagram-cap"><strong>Chart 69 — Four verbs, one table.</strong> HTTP methods map 1:1 (POST→INSERT, GET→SELECT, PUT→UPDATE, DELETE→DELETE) — the API you built was SQL with extra steps.</p>
+<details><summary><strong>Source + sentence shape (click)</strong></summary>
+<p>SELECT shape: <code class="inline">SELECT columns FROM table WHERE filter ORDER BY sort LIMIT n OFFSET m</code> — read it as the list pipeline (chart 58): narrow, order, window. Clauses are optional except SELECT..FROM. Source: <a href="https://www.postgresql.org/docs/current/tutorial-select.html">PG SELECT tutorial</a>.</p>
+<pre>SELECT cols FROM t WHERE ... ORDER BY ... LIMIT ... OFFSET ...</pre>
+</details>
+
+<h2>2 · The clause pipeline (chart 58, in SQL)</h2>
+<div class="mermaid">flowchart LR
+  ALL2["FROM tasks<br/>all rows"] --> WH["WHERE done=false<br/>narrow"]
+  WH --> OB["ORDER BY created_at DESC<br/>order"]
+  OB --> LO["LIMIT 10 OFFSET 10<br/>window: page 2"]
+</div>
+<p class="diagram-cap"><strong>Chart 70 — Same pipeline, new language.</strong> Filter→sort→page didn't change since lesson 0020 — only the engine did (your code → the librarian).</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>SELECT * FROM tasks WHERE done=false ORDER BY created_at DESC LIMIT 10 OFFSET 10;</pre>
+</details>
+
+<h2>3 · Writes: say WHAT, not HOW</h2>
+<div class="mermaid">sequenceDiagram
+  participant Y as you (psql)
+  participant P as planner
+  participant R as rows
+  Y->>P: UPDATE tasks SET done=true WHERE id='a1'
+  P->>P: find via key (no full scan)
+  P->>R: change + report count
+  R->>Y: UPDATE 1
+</div>
+<p class="diagram-cap"><strong>Chart 71 — Declarative writes.</strong> You describe the target set (WHERE); the planner picks the path. The count back (“UPDATE 1”) is your affected-rows receipt — 0 means “matched nothing”, the SQL twin of 404.</p>
+<details><summary><strong>Source + WHERE law (click)</strong></summary>
+<p>Law: UPDATE/DELETE without WHERE touch <em>every row</em> — the most-feared beginner command in backend (<code class="inline">DELETE FROM tasks;</code> empties the table, no trash can). Say WHERE first, run SELECT with the same WHERE first when nervous.</p>
+<pre>UPDATE tasks SET done=true WHERE id='a1'; -- receipt: UPDATE 1</pre>
+</details>
+
+<h2>4 · Live demo: four verbs (10 min)</h2>
+<pre>docker exec -it taskflow-db psql -U postgres -d taskflow
+<span class="c">-- inside psql now (prompt: taskflow=#). Semicolons end every command; \q quits.</span>
+INSERT INTO tasks (id, title) VALUES ('a1', 'Learn SQL'), ('b2', 'Learn JOINs');
+<span class="c">-- expected: INSERT 0 2</span>
+SELECT id, title, done FROM tasks ORDER BY created_at;
+<span class="c">-- expected: 2 rows — your first question answered</span>
+SELECT * FROM tasks WHERE done = false ORDER BY created_at DESC LIMIT 10 OFFSET 0;
+<span class="c">-- expected: page 1 of open tasks, newest first — chart 70 alive</span>
+UPDATE tasks SET done = true WHERE id = 'a1';
+<span class="c">-- expected: UPDATE 1</span>
+DELETE FROM tasks WHERE id = 'b2';
+<span class="c">-- expected: DELETE 1 — and a1 stays done. Verify: SELECT * FROM tasks;</span></pre>
+<p>Why it works: psql sends text, Postgres answers with receipts + rows. <code class="inline">id</code> omitted from INSERT would fail (no default) — keys are your job until serials arrive (0024).</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Every service function in 0020 becomes one sentence here: list→SELECT, add→INSERT…RETURNING, done→UPDATE, rm→DELETE. 0025 runs these from Node (same text, driver delivers); Prisma (0026) generates them. Learn the sentences and ORMs stay transparent forever.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Forgot the semicolon.”</strong> psql waits with <code class="inline">-#</code> prompt, seemingly hung. Fix: type <code class="inline">;</code> + enter — it was waiting for the sentence to end.</div>
+<div class="callout"><strong>“UPDATE without WHERE.”</strong> All rows changed, receipt says <code class="inline">UPDATE 500</code>. Fix: no antidote except backups — always write WHERE first, SELECT-check on precious tables.</div>
+<div class="callout warn"><strong>“Quoted a boolean/number.”</strong> <code class="inline">WHERE done = 'false'</code> — text vs boolean mismatch (empty result, no error!). Fix: types matter in comparisons; strings take quotes, the rest don't.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Insert 5 tasks (mix done true/false); paste: count query (<code class="inline">SELECT count(*)</code>), page-1 (limit 2, newest first), page-2.</li>
+<li>Mark two done with one UPDATE (WHERE id IN (...)); paste receipt + verifying SELECT.</li>
+<li>Delete one; paste receipt + final table. Then answer: which HTTP verb mapped to each SQL verb you used?</li>
+</ol>
+<p><em>Done means:</em> three pastes + four verb mappings. Lesson 0024 (relations + JOINs) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="SELECT picks columns, WHERE narrows rows, ORDER sorts, LIMIT windows.">
+<p>1. Page 2 newest first?</p>
+<button data-key="a">SELECT WHERE only clause</button>
+<button data-key="b">ORDER plus LIMIT OFFSET</button>
+<button data-key="c">DELETE with RETURNING rows</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="no WHERE means every row matches — the classic wipeout.">
+<p>2. DELETE sans WHERE hits?</p>
+<button data-key="a">First row only ever</button>
+<button data-key="b">Nothing, needs LIMIT too</button>
+<button data-key="c">Every row in table</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="the receipt counts matched rows — 0 is SQL for 'nothing there', the twin of 404.">
+<p>3. UPDATE 0 means what?</p>
+<button data-key="a">Matched nothing, changed nil</button>
+<button data-key="b">Deleted whole table clean</button>
+<button data-key="c">Created one fresh row</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="GET lists map to SELECT; POST creation maps to INSERT.">
+<p>4. GET /tasks equals?</p>
+<button data-key="a">INSERT new task rows</button>
+<button data-key="b">SELECT with filters applied</button>
+<button data-key="c">DELETE old task rows</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">You ask now: <strong>four verbs + WHERE/ORDER/LIMIT/OFFSET; receipts count matches; WHERE-less writes are wipeouts; HTTP verbs mirror SQL verbs</strong>. Next: tables that know each other — keys, JOINs, real schema.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://www.postgresql.org/docs/current/tutorial-select.html">PG SELECT</a> · <a href="https://www.postgresql.org/docs/current/tutorial-insert.html">INSERT</a> · <a href="https://www.postgresql.org/docs/current/tutorial-update.html">UPDATE/DELETE</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0022-why-files-retire.html">← 0022 Files retire</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0024 (relations + JOINs) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: <code class="inline">SELECT count(*) FROM tasks;</code> → 5; pages via <code class="inline">ORDER BY created_at DESC LIMIT 2 OFFSET 0/2</code>; <code class="inline">UPDATE tasks SET done=true WHERE id IN ('x','y');</code> → UPDATE 2; mappings POST→INSERT, GET→SELECT, PUT→UPDATE, DELETE→DELETE.</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “OFFSET without ORDER” — correct: unordered pages overlap/shift; ORDER first, always.</p>
+</details>
+
+<footer><strong>Lesson 0023</strong> · Module 5 · SQL by hand · Sources: <a href="https://www.postgresql.org/docs/current/tutorial-select.html">PG tutorial</a> · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

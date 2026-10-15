@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0027 — Module 5 Checkpoint: Gate to Auth</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Module 5 checkpoint: write SQL blind, draw the family blind, triage refusals — the gate to auth.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0027-module-5-checkpoint.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0027 — Module 5 Checkpoint: Gate to Auth">
+<meta property="og:description" content="Module 5 checkpoint: write SQL blind, draw the family blind, triage refusals — the gate to auth.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0027-module-5-checkpoint.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0027 — Module 5 Checkpoint: Gate to Auth">
+<meta name="twitter:description" content="Module 5 checkpoint: write SQL blind, draw the family blind, triage refusals — the gate to auth.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0027 — Module 5 Checkpoint: Gate to Auth", "description": "Module 5 checkpoint: write SQL blind, draw the family blind, triage refusals — the gate to auth.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0026-prisma-earned.html">← 0026</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Checkpoint</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 5 · CHECKPOINT · GATE TO AUTH</p>
+<h1>Data with <span class="u-stroke">rules</span>, blind</h1>
+<p class="subtitle">One sitting, one win: you write SQL and read generated SQL from memory — then users get passwords.</p>
+<div class="meta">
+<span>⏱ 40–50 min</span><span>Prerequisites: Lessons 0022–0026</span><span>Objectives: retrieve · triage · gate</span>
+</div>
+</header>
+
+<div class="callout why"><strong>Same deal:</strong> draw first, compare second. Module 6 builds accounts on these tables — this gate proves the ground holds.</div>
+
+<h2>0 · Your Module 5 journey on one chart</h2>
+<div class="mermaid">journey
+  title Module 5 — what you stored
+  section 0022 Retire
+    Name four file wounds: 4: You
+    Run Postgres locally: 4: You
+  section 0023 Ask
+    Four verbs plus clauses: 5: You
+    Fear missing WHERE: 4: You
+  section 0024 Relate
+    FK plus JOIN stitch: 5: You
+    Choose delete policy: 3: You
+  section 0025 Wire
+    Parameters always: 5: You
+    Pool shared, dial set: 3: You
+  section 0026 Generate
+    Models to migrate: 4: You
+    Client over raw text: 4: You
+  section 0027 Today
+    Write it all blind: 5: You
+</div>
+<p class="diagram-cap"><strong>Chart 81 — Journey.</strong> Shaky task → re-open its lesson before exercises.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>journey
+  title Module 5 — what you stored
+  ...</pre>
+</details>
+
+<h2>1 · Cover-and-draw #1: question to rows</h2>
+<p><strong>Blank page.</strong> Write the full page-2-open-tasks query from keywords alone, then diff:</p>
+<div class="mermaid">flowchart LR
+  SEL["SELECT cols"] --> FR["FROM tasks"]
+  FR --> WH2["WHERE done=false"]
+  WH2 --> OB2["ORDER BY created_at DESC"]
+  OB2 --> LO2["LIMIT 10 OFFSET 10"]
+</div>
+<p class="diagram-cap"><strong>Chart 82 — Sentence order.</strong> Five clauses, fixed order — the list pipeline in SQL.</p>
+<details><summary><strong>Source + grading (click)</strong></summary>
+<p>Full marks = exact clause order + page-2 math (OFFSET 10). Swapped ORDER/LIMIT or OFFSET 2 loses half.</p>
+<pre>SELECT .. FROM .. WHERE .. ORDER BY .. LIMIT .. OFFSET ..</pre>
+</details>
+
+<h2>2 · Cover-and-draw #2: family + stitch</h2>
+<div class="mermaid">erDiagram
+  USERS ||--o{ PROJECTS : owns
+  PROJECTS ||--o{ TASKS : holds
+</div>
+<p class="diagram-cap"><strong>Chart 83 — Family, blind.</strong> Three tables, two stitches, keys on every line.</p>
+<details><summary><strong>Source + grading (click)</strong></summary>
+<p>Full marks = all three PKs + two FK lines with direction + one policy (CASCADE/RESTRICT) stated. Then write the three-table JOIN from 0024's key without peeking.</p>
+<pre>erDiagram
+  USERS ||--o{ PROJECTS ...
+  ... + JOIN query</pre>
+</details>
+
+<h2>3 · Wire rules, pocket chart</h2>
+<div class="mermaid">flowchart TD
+  W6["value from user?"] --> P6["$N parameter<br/>always"]
+  I6["identifier (column/dir)?"] --> A6["allowlist<br/>never input"]
+  C6["schema change?"] --> M6["new migration<br/>never edit"]
+</div>
+<p class="diagram-cap"><strong>Chart 84 — Three wire laws.</strong> Values bind, identifiers allowlist, schemas migrate forward.</p>
+
+<h2>4 · DB triage (new lane)</h2>
+<div class="mermaid">flowchart TD
+  E6["DB failed?!"] --> Q15{"which refusal?"}
+  Q15 -- "FK violation" --> F6["orphan write — fix parent first"]
+  Q15 -- "unique violation" --> U6["duplicate — 409, not 500"]
+  Q15 -- "timeout/pool" --> T6["slow query or leak — check logs"]
+  Q15 -- "wrong rows" --> W7["JOIN fan-out or missing WHERE"]
+</div>
+<p class="diagram-cap"><strong>Chart 85 — Refusals are answers.</strong> Constraint errors map to client statuses (400/404/409) — only pool/timeouts mean “our problem, 500”.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>FK→400 · unique→409 · pool→500 · fan-out→rewrite query</pre>
+</details>
+
+<h2>5 · Where Module 5 hours go</h2>
+<div class="mermaid">pie title Module 5 stuck-hours (illustrative, not data)
+  "missing WHERE / semicolons" : 30
+  "FK + JOIN direction" : 30
+  "pg types (count as text)" : 20
+  "migrate vs seed confusion" : 20
+</div>
+<p class="diagram-cap"><strong>Chart 86 — Illustrative split.</strong> Ceremony again — psql habits and key directions.</p>
+
+<h2>6 · Retrieval exercises (blank page, then check)</h2>
+<ol class="steps">
+<li><strong>Sentence + family</strong> — charts 82 + 83 from memory, then the three-table filtered JOIN.</li>
+<li><strong>Triage ×3</strong> — status + fix for: (a) duplicate email register, (b) task for missing project, (c) list suddenly slow at 100k rows.</li>
+<li><strong>Live drill</strong> — cold: table + 3 rows + filtered page + one parameterized Node query; paste all outputs.</li>
+</ol>
+<p><em>Done means:</em> sentence sheet + family sheet + three verdicts + live pastes. When all pass, Module 6 is unlocked — passwords, sessions, ownership.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="narrow, order, window — WHERE, ORDER BY, LIMIT/OFFSET in fixed order.">
+<p>1. Clause order is?</p>
+<button data-key="a">LIMIT WHERE ORDER BY</button>
+<button data-key="b">WHERE ORDER LIMIT OFFSET</button>
+<button data-key="c">ORDER LIMIT WHERE FROM</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="no WHERE matches everything — the wipeout receipt tells the tale.">
+<p>2. DELETE receipt 500?</p>
+<button data-key="a">Deleted one row only</button>
+<button data-key="b">Nothing matched at all</button>
+<button data-key="c">Wiped whole table clean</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="bind values, allowlist identifiers, migrate forward — no exceptions.">
+<p>3. Wire laws count?</p>
+<button data-key="a">Three laws, always applied</button>
+<button data-key="b">One law, sometimes skipped</button>
+<button data-key="c">Five laws, rarely needed</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="a duplicate is the client's fault (409) — the server worked correctly.">
+<p>4. Duplicate email — status?</p>
+<button data-key="a">500 server broke badly</button>
+<button data-key="b">409 conflict, client fault</button>
+<button data-key="c">200 OK, ignore dupes</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="models generate tables plus client — SQL stays readable underneath.">
+<p>4b. Prisma generates what?</p>
+<button data-key="a">Frontend components tree</button>
+<button data-key="b">Tables plus typed client</button>
+<button data-key="c">Test suites automatically</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>7 · Summary + gate to Module 6</h2>
+<div class="callout why">Module 5 is yours when: <strong>you write the sentence blind, draw the family blind, wire by the three laws, and triage refusals to statuses</strong>. Next: Module 6 — accounts, sessions, and “yours, not theirs”.</div>
+
+<div class="callout">
+<strong>Primary sources (re-read only misses):</strong> <a href="https://www.postgresql.org/docs/current/tutorial.html">PG tutorial</a> · <a href="https://node-postgres.com/">pg</a> · <a href="https://www.prisma.io/docs/orm/v7/core-concepts/supported-databases/postgresql">Prisma v7</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0026-prisma-earned.html">← 0026 Prisma</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Module 6 starts at 0028 — never store passwords.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Ex2: (a) unique violation → 409 “email taken”. (b) FK violation → 400/404 “unknown project”. (c) slowness → EXPLAIN the query, index the filter column (Module 5 mentioned indexes; CREATE INDEX demo acceptable).</p>
+<p>Quiz: 1b, 2c, 3a, 4b, 4b→b. Gate: ≥4/5 + live drill = Module 6 unlocked.</p>
+</details>
+
+<footer><strong>Checkpoint 0027</strong> · Module 5 gate · 6 charts · Sources: PG/pg/Prisma · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

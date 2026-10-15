@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0022 — Why Files Retire: Meet the Database</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Why files retire: concurrency, queries, sharing, integrity — then run PostgreSQL locally with your first typed table.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0022-why-files-retire.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0022 — Why Files Retire: Meet the Database">
+<meta property="og:description" content="Why files retire: concurrency, queries, sharing, integrity — then run PostgreSQL locally with your first typed table.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0022-why-files-retire.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0022 — Why Files Retire: Meet the Database">
+<meta name="twitter:description" content="Why files retire: concurrency, queries, sharing, integrity — then run PostgreSQL locally with your first typed table.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0022 — Why Files Retire: Meet the Database", "description": "Why files retire: concurrency, queries, sharing, integrity — then run PostgreSQL locally with your first typed table.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0021-module-4-checkpoint.html">← 0021</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0022</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 5 · DATABASES + SQL · LESSON 1</p>
+<h1>Why files <span class="u-stroke">retire</span></h1>
+<p class="subtitle">One sitting, one win: you can say exactly what breaks with files — and you run PostgreSQL locally.</p>
+<div class="meta">
+<span>⏱ 30–40 min</span><span>Prerequisites: Module 4 gate</span><span>Objectives: limits · tables · postgres up</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Chart 39 named it: two overlapping writes, one victim. Add three more wounds — “find tasks containing ‘milk’, newest first, page 2” means loading the <em>whole file</em>; two servers can't share one file; and nothing stops a corrupt write from poisoning everything. Files were the bicycle; it's time to name the car.</div>
+
+<h2>1 · The mental model: librarian vs pile</h2>
+<div class="mermaid">flowchart LR
+  subgraph PILE["tasks.json pile"]
+    F1["whole file<br/>in memory, always"]
+    F2["find = loop all<br/>you write it"]
+    F3["two writers<br/>= data loss"]
+  end
+  subgraph LIB["PostgreSQL librarian"]
+    D1["millions of rows<br/>on disk, indexed"]
+    D2["find = ask SQL<br/>it optimizes"]
+    D3["many writers<br/>transactions guard"]
+  end
+</div>
+<p class="diagram-cap"><strong>Chart 66 — Pile vs librarian.</strong> Same data, opposite physics: you stop hauling the pile and start <em>asking questions</em>.</p>
+<details><summary><strong>Source + the four wounds (click)</strong></summary>
+<p>Files die four deaths: concurrency (chart 39), queries (no filter/sort/page engine), sharing (one machine only), integrity (no rules — a task can point at a user that doesn't exist). Databases answer all four; the price is learning to ask in SQL. Source: <a href="https://www.postgresql.org/docs/current/tutorial.html">PostgreSQL tutorial</a>.</p>
+<pre>flowchart LR
+  F1["pile: all in memory"] --> D1["librarian: indexed"]
+  ...</pre>
+</details>
+
+<h2>2 · Tables: labeled grids with rules</h2>
+<div class="mermaid">erDiagram
+  TASKS {
+    text id PK
+    text title
+    boolean done
+    timestamptz created_at
+  }
+</div>
+<p class="diagram-cap"><strong>Chart 67 — One table, first contact.</strong> Columns have types (the database enforces them — your Zod schemas finally have a twin); one column is the key (unique ID per row).</p>
+<details><summary><strong>Source + vocabulary (click)</strong></summary>
+<p>Table = grid; row = one record; column = one field with a type; primary key = the column that uniquely names each row. Relations (foreign keys, JOINs) arrive in 0024 — one table today, honestly understood.</p>
+<pre>erDiagram
+  TASKS { text id PK ... }</pre>
+</details>
+
+<h2>3 · Running Postgres: one container</h2>
+<div class="mermaid">flowchart LR
+  YOU["you<br/>docker run"] --> CON["container<br/>postgres:17, door 5432"]
+  CON --> CLI3["psql / app<br/>speak SQL over the door"]
+</div>
+<p class="diagram-cap"><strong>Chart 68 — Local Postgres.</strong> The database is just another door-guard (port 5432) — same chart-29 shape as your API, different language.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>flowchart LR
+  YOU["docker run"] --> CON["postgres:17"] --> CLI3["psql"]</pre>
+</details>
+
+<h2>4 · Live demo: up + first table (10 min)</h2>
+<p>Needs Docker (Module 8 explains it properly; today it's just the launcher):</p>
+<pre>docker run --name taskflow-db -e POSTGRES_PASSWORD=devpw -p 5432:5432 -d postgres:17
+<span class="c"># expected: long hex id — the librarian is hired. No Docker? Install Postgres 17
+# locally instead (https://www.postgresql.org/download/) — same door, same language.</span>
+docker exec -it taskflow-db psql -U postgres -c "CREATE DATABASE taskflow;"
+<span class="c"># expected: CREATE DATABASE</span></pre>
+<p>Create the connection dial + first table (save as <code class="inline">db/001_tasks.sql</code> — migrations start as numbered files):</p>
+<pre>-- file: db/001_tasks.sql
+CREATE TABLE tasks (
+  id         TEXT PRIMARY KEY,
+  title      TEXT NOT NULL CHECK (char_length(title) &gt; 0),
+  done       BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);</pre>
+<pre>docker exec -it taskflow-db psql -U postgres -d taskflow -f - &lt; db/001_tasks.sql
+<span class="c"># Windows PowerShell: Get-Content db/001_tasks.sql | docker exec -i taskflow-db psql -U postgres -d taskflow</span>
+docker exec -it taskflow-db psql -U postgres -d taskflow -c "\d tasks"
+<span class="c"># expected: the grid described back — 4 columns, types, key, defaults. Librarian confirmed.</span></pre>
+<p>Why it works: <code class="inline">CHECK</code> and <code class="inline">NOT NULL</code> are integrity rules <em>in the building</em> — corrupt data can't be stored even by buggy code. <code class="inline">DATABASE_URL=postgresql://postgres:devpw@localhost:5432/taskflow</code> is the address (host/port/name, chart D again).</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>0023 writes SQL by hand against this table; 0024 adds users + projects with foreign keys; 0025 connects Node (pool, parameterized); 0026 Prisma generates from this same shape. The <code class="inline">db/*.sql</code> files become the migration chain — never edit an applied one (new file per change, always).</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Port 5432 taken.”</strong> A local Postgres already squats the door. Fix: stop it, or map another (<code class="inline">-p 5433:5432</code>) and note the dial — doors again, chart 31 habits.</div>
+<div class="callout"><strong>“Edited 001 after applying.”</strong> Applied migrations are history — editing rewrites it. Fix: new file <code class="inline">002_....sql</code> with ALTER; the chain only moves forward.</div>
+<div class="callout warn"><strong>“devpw in production.”</strong> Demo password in a real URL. Fix: strong secrets via env dials (lesson 0009's rule, higher stakes) — Module 8 enforces.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Run Postgres (container or local); create database; apply <code class="inline">001_tasks.sql</code>; paste <code class="inline">\d tasks</code>.</li>
+<li>Try inserting a rule-breaker: empty title — paste the exact refusal (integrity working).</li>
+<li>Write your <code class="inline">DATABASE_URL</code> (mask the password as ***) and name its four parts (chart D drill).</li>
+</ol>
+<p><em>Done means:</em> table described + one pasted refusal + dissected URL. Lesson 0023 (SQL by hand) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="overlapping read-modify-write cycles drop a writer — plus no queries, sharing, or rules.">
+<p>1. Files die first how?</p>
+<button data-key="a">Slow disks always fail</button>
+<button data-key="b">Concurrent writers clash silently</button>
+<button data-key="c">JSON looks too ugly</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="the key uniquely names each row — lookups and links hang on it.">
+<p>2. Primary key does what?</p>
+<button data-key="a">Speeds up JSON output</button>
+<button data-key="b">Stores passwords safely</button>
+<button data-key="c">Names each row uniquely</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="rules live in the building — buggy code cannot store corrupt rows.">
+<p>3. CHECK constraints live?</p>
+<button data-key="a">Inside database itself</button>
+<button data-key="b">Only in Zod schemas</button>
+<button data-key="c">Within frontend forms</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="5432 is the librarian's door — same listen shape as your API.">
+<p>4. Postgres listens where?</p>
+<button data-key="a">Port 3000 with API</button>
+<button data-key="b">Port 5432 its door</button>
+<button data-key="c">Port 80 for browsers</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Files retire with reasons: <strong>concurrency, queries, sharing, integrity — the librarian answers all four; tables are typed grids with keys; rules live in the building</strong>. Next: SQL by hand — ask questions, get rows.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://www.postgresql.org/docs/current/tutorial.html">PostgreSQL tutorial</a> · <a href="https://www.postgresql.org/docs/current/ddl.html">DDL docs</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0021-module-4-checkpoint.html">← 0021 Checkpoint</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0023 (SQL: ask questions, get rows) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: refusal must quote <code class="inline">violates check constraint "tasks_title_check"</code>. URL parts: user postgres / host localhost / port 5432 / database taskflow (+ password masked).</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “DB = bigger file” — correct with the four wounds.</p>
+</details>
+
+<footer><strong>Lesson 0022</strong> · Module 5 · Why files retire · Sources: <a href="https://www.postgresql.org/docs/current/tutorial.html">PG tutorial</a> · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>
