@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0030 — Yours, Not Theirs: Ownership + Hardening</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Ownership plus hardening: SQL WHERE climbs, 404s for strangers, CORS allowlist, login rate caps, five locks.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0030-ownership-and-hardening.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0030 — Yours, Not Theirs: Ownership + Hardening">
+<meta property="og:description" content="Ownership plus hardening: SQL WHERE climbs, 404s for strangers, CORS allowlist, login rate caps, five locks.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0030-ownership-and-hardening.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0030 — Yours, Not Theirs: Ownership + Hardening">
+<meta name="twitter:description" content="Ownership plus hardening: SQL WHERE climbs, 404s for strangers, CORS allowlist, login rate caps, five locks.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0030 — Yours, Not Theirs: Ownership + Hardening", "description": "Ownership plus hardening: SQL WHERE climbs, 404s for strangers, CORS allowlist, login rate caps, five locks.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0029-cookie-sessions.html">← 0029</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0030</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 6 · AUTH + SECURITY · LESSON 3</p>
+<h1>Yours, <span class="u-stroke">not theirs</span></h1>
+<p class="subtitle">One sitting, one win: every room answers only for its owner — plus the full hardening sweep.</p>
+<div class="meta">
+<span>⏱ 35–45 min</span><span>Prerequisites: Lesson 0029 (identity works)</span><span>Objectives: ownership · CORS · limits</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Login works — and user A fetches task <code class="inline">t9</code> belonging to user B, because no room ever asks “yours?”. Authentication without authorization is a locked front door with open windows. Today every query grows a <code class="inline">WHERE owner</code>, then the sweep: CORS, rate limits, safe errors, secret hygiene.</div>
+
+<h2>1 · The mental model: bouncer checks the list twice</h2>
+<div class="mermaid">flowchart TD
+  K8["GET /tasks/t9<br/>+ wristband"] --> WHO["who? → user A"]
+  WHO --> OWN{"mine?<br/>t9.owner = A?"}
+  OWN -- "yes" --> R4["200 the task"]
+  OWN -- "no" --> F4["404 (NOT 403!)<br/>existence hidden"]
+</div>
+<p class="diagram-cap"><strong>Chart 93 — Owner check.</strong> Strangers get 404, not 403 — confirming “exists but forbidden” hands out an inventory of others' ids.</p>
+<details><summary><strong>Source + the 404 rule (click)</strong></summary>
+<p>Rule: object-level checks answer 404 to non-owners (indistinguishable from missing). 403 stays for role-level denials (“admins only”). Enumeration dies: guessing ids reveals nothing. Implement in SQL (<code class="inline">... AND owner check</code>) so the row never even loads.</p>
+<pre>404 for not-yours · 403 for not-allowed-role · 401 for unknown</pre>
+</details>
+
+<h2>2 · Ownership rides the family (SQL)</h2>
+<div class="mermaid">flowchart LR
+  T3["task t9"] --> P4["project p3"] --> U3["user A?"]
+  Q8["WHERE t.id=$1<br/>AND p.owner_id=$2 (you)"] --> R5["row or nothing<br/>nothing → 404"]
+</div>
+<p class="diagram-cap"><strong>Chart 94 — Climb then filter.</strong> Tasks don't carry owners directly — the JOIN climbs to projects, the WHERE pins the caller. One clause, whole building secured.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>... JOIN projects p ON p.id=t.project_id WHERE t.id=$1 AND p.owner_id=$2</pre>
+</details>
+
+<h2>3 · The hardening sweep (five locks)</h2>
+<div class="mermaid">flowchart TD
+  H5["CORS<br/>which BROWSERS may call?"] --> R6["rate limit<br/>how OFTEN per IP?"]
+  R6 --> E7["safe errors<br/>what LEAVES?"]
+  E7 --> S7["secrets<br/>where LIVE?"]
+  S7 --> D5["deps<br/>known holes?"]
+</div>
+<p class="diagram-cap"><strong>Chart 95 — Five locks, one afternoon.</strong> None protect data directly — all shrink what attackers can <em>try</em>.</p>
+<details><summary><strong>Source + each lock in one line (click)</strong></summary>
+<p>CORS: allowlist your frontend origin only (it never blocks curl — browsers enforce, attackers don't use browsers). Rate limit: login/register capped per IP (brute force becomes uneconomical). Errors: one sentence out, stacks in logs (0018's lane, unchanged). Secrets: env only, <code class="inline">.env</code> ignored, prod values differ. Deps: <code class="inline">npm audit</code> in CI, update on alerts. Sources: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS">MDN CORS</a>, <a href="https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html">OWASP REST</a>.</p>
+<pre>CORS allowlist · login rate cap · 1-sentence errors · env secrets · npm audit</pre>
+</details>
+
+<h2>4 · Live demo: scoped rooms + locks (12 min)</h2>
+<pre>npm install cors express-rate-limit
+<span class="c"># service change (the whole ownership story in one clause):</span>
+// services/tasks.service.mjs — every query gains the climb:
+" ... JOIN projects p ON p.id = t.project_id WHERE p.owner_id = $1 AND ..."</pre>
+<pre>// app.mjs locks (order: chart 51 — locks sit with layers):
+import cors from "cors";
+import rateLimit from "express-rate-limit";
+app.use(cors({ origin: process.env.FRONTEND_URL ?? "http://localhost:5173" }));
+app.use("/auth/", rateLimit({ windowMs: 15 * 60e3, limit: 50 })); // 50 login tries / 15min / IP
+// rooms: pass req.user.id into every service call; missing row → 404 (never 403)</pre>
+<pre>node -e "/* as user B, knock user A's task id: */ const r = await fetch('http://localhost:3000/tasks/tA1',{headers:{Cookie:'sid='+B}}); console.log(r.status)"
+<span class="c"># expected: 404 — indistinguishable from missing. Inventory: protected.</span>
+node -e "const r = await fetch('http://localhost:3000/tasks',{headers:{origin:'https://evil.test'}}); console.log('cors:', r.headers.get('access-control-allow-origin'))"
+<span class="c"># expected: cors: null — browser would refuse; curl still sees (CORS is browser law)</span></pre>
+<p>Why it works: scoping in SQL means unowned rows never load (no code path can leak them); CORS allowlist names the one frontend; the login cap turns password-guessing into centuries.</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Multi-user TaskFlow is real: register → login → only-your-projects → only-your-tasks, every layer witnessed. Module 7 tests this exact matrix (allowed/denied per role per room); Module 8 re-points CORS at the deployed domain and rotates every secret.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Check in code, not SQL.”</strong> Loaded the row, then <code class="inline">if (task.owner !== me)</code> — one forgotten branch leaks. Fix: scope in the query; unloaded rows can't leak through any branch.</div>
+<div class="callout"><strong>“CORS * with cookies.”</strong> Wildcard origin + credentials — browsers refuse the combo, and it invites credential theft. Fix: exact origin allowlist; credentials need named origins, always.</div>
+<div class="callout warn"><strong>“403 for others' tasks.”</strong> Confirms existence (“yes, t9 is real, just not yours”) — id inventory for attackers. Fix: 404 at object level; 403 only for role gates.</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Scope list/by-id/update/delete to the caller; as two users, paste: own-task 200, other's-task 404, missing 404 (all three identical shape).</li>
+<li>Set a wrong origin knock; paste the missing CORS header proving refusal.</li>
+<li>Hammer login 60× (loop script); paste the 429 proving the cap.</li>
+</ol>
+<p><em>Done means:</em> three 404s + CORS paste + 429 paste. Module 6 checkpoint (0031) is next — gate to testing.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="404 hides existence; 403 confirms it — strangers learn nothing.">
+<p>1. Stranger knocks others' task?</p>
+<button data-key="a">403 forbidden, id confirmed</button>
+<button data-key="b">404, as if missing</button>
+<button data-key="c">200 with redacted body</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="unloaded rows can't leak through any forgotten branch.">
+<p>2. Ownership enforced where?</p>
+<button data-key="a">Frontend hides buttons first</button>
+<button data-key="b">Code checks after load</button>
+<button data-key="c">SQL WHERE climbs family</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="CORS is browser law — curl, scripts, and attackers ignore it.">
+<p>3. CORS stops whom?</p>
+<button data-key="a">Browsers, not attackers direct</button>
+<button data-key="b">All HTTP clients fully</button>
+<button data-key="c">Database intrusions cold</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="caps make guessing uneconomical — centuries per account.">
+<p>4. Rate limit buys?</p>
+<button data-key="a">Faster login responses now</button>
+<button data-key="b">Brute force uneconomical</button>
+<button data-key="c">Free extra CPU cycles</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Locked properly: <strong>ownership in SQL (404 to strangers), CORS allowlist, login rate caps, one-sentence errors, env secrets, audited deps</strong>. Next: the Module 6 checkpoint — then tests prove it all.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html">OWASP REST</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS">MDN CORS</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0029-cookie-sessions.html">← 0029 Sessions</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Module 6 checkpoint (0031) comes next — gate to testing.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: all three 404s byte-identical shape <code class="inline">{ error: ... }</code>. CORS paste shows null header for evil origin, origin echoed for the allowlisted one. 429 body names the window; hammer script must space requests (burst + sustained both capped by default keyGenerator).</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for Q1a (“403 is honest”) — correct: honesty to attackers is a vulnerability.</p>
+</details>
+
+<footer><strong>Lesson 0030</strong> · Module 6 · Ownership + hardening · Sources: <a href="https://cheatsheetseries.owasp.org/">OWASP</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS">CORS</a> · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

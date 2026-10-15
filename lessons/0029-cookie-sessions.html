@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0029 — Sessions: Prove Once, Cookie Remembers</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Cookie sessions: random wristbands, server-side guest list, three flags, who-then-may-you guards with 401 and 403.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0029-cookie-sessions.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0029 — Sessions: Prove Once, Cookie Remembers">
+<meta property="og:description" content="Cookie sessions: random wristbands, server-side guest list, three flags, who-then-may-you guards with 401 and 403.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0029-cookie-sessions.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0029 — Sessions: Prove Once, Cookie Remembers">
+<meta name="twitter:description" content="Cookie sessions: random wristbands, server-side guest list, three flags, who-then-may-you guards with 401 and 403.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0029 — Sessions: Prove Once, Cookie Remembers", "description": "Cookie sessions: random wristbands, server-side guest list, three flags, who-then-may-you guards with 401 and 403.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0028-never-store-passwords.html">← 0028</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Lesson 0029</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 6 · AUTH + SECURITY · LESSON 2</p>
+<h1>Prove once, <span class="u-stroke">cookie</span> remembers</h1>
+<p class="subtitle">One sitting, one win: login issues a session cookie; protected rooms know who knocks.</p>
+<div class="meta">
+<span>⏱ 35–45 min</span><span>Prerequisites: Lesson 0028 (login works)</span><span>Objectives: session · cookie · guard</span>
+</div>
+</header>
+
+<div class="callout why"><strong>The real problem.</strong> Login works — then the next knock is a stranger again. Re-sending passwords per request is exposure multiplied. Sessions split the job: one strong proof at login, then a random <em>wristband</em> (session id) the server recognizes, revocable in one row-delete.</div>
+
+<h2>1 · The mental model: wristband, guest list</h2>
+<div class="mermaid">flowchart LR
+  L4["login OK"] --> W9["server: random id<br/>guest-list row (DB)"]
+  W9 --> C6["Set-Cookie: sid=...<br/>wristband to browser"]
+  C6 --> K6["later knocks<br/>Cookie: sid=... auto"]
+  K6 --> G3["guard: list lookup<br/>→ req.user or 401"]
+</div>
+<p class="diagram-cap"><strong>Chart 90 — Wristband.</strong> The cookie holds a random pointer, never identity — the list (server-side) holds the truth. Steal the list? Rotate. Steal a wristband? Revoke one row.</p>
+<details><summary><strong>Source + cookie flags (click)</strong></summary>
+<p>Flags (all three, always): <code class="inline">HttpOnly</code> (JS can't read — XSS can't steal), <code class="inline">SameSite=Lax</code> (no cross-site rides — CSRF neutered), <code class="inline">Secure</code> in prod (https only). <code class="inline">Max-Age</code> bounds the party (7 days here). Source: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies">MDN cookies</a>, <a href="https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html">OWASP sessions</a>.</p>
+<pre>Set-Cookie: sid=RANDOM; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800 (+Secure prod)</pre>
+</details>
+
+<h2>2 · Login issues, logout burns</h2>
+<div class="mermaid">sequenceDiagram
+  participant C as client
+  participant A as /auth/login
+  participant S as sessions table
+  C->>A: valid credentials
+  A->>S: INSERT (id=random, user, expires)
+  A->>C: 200 + Set-Cookie wristband
+  C->>A: POST /auth/logout + Cookie
+  A->>S: DELETE that row
+  A->>C: 204 + Clear-Cookie
+</div>
+<p class="diagram-cap"><strong>Chart 91 — Issue and burn.</strong> Random ids from <code class="inline">crypto.randomBytes</code> (unpredictable by construction); logout deletes server-side (the wristband becomes a dead pointer).</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>login → INSERT session + Set-Cookie · logout → DELETE + clear · expiry sweeps orphans</pre>
+</details>
+
+<h2>3 · The guard layer (authentication vs authorization)</h2>
+<div class="mermaid">flowchart TD
+  K7["knock with cookie?"] --> AU["AUTHENTICATION<br/>who are you? → req.user"]
+  AU -- "no session → 401" --> OUT7["stop"]
+  AU -- "user found" --> AZ["AUTHORIZATION<br/>may you? → owner check"]
+  AZ -- "not yours → 403" --> OUT7
+  AZ -- "yours" --> ROOM["room proceeds"]
+</div>
+<p class="diagram-cap"><strong>Chart 92 — Two questions, in order.</strong> 401 = unknown stranger; 403 = known but forbidden. Different questions, different numbers — clients (and attackers) read the distinction.</p>
+<details><summary><strong>Source + placement (click)</strong></summary>
+<p>Guard sits between parser and rooms (chart 51's free slot): public rooms skip it, private rooms require it. Ownership (may-you) lives per-resource in services; identity (who) lives once in the guard.</p>
+<pre>401 unknown · 403 known-but-no · guard = middleware, ownership = service check</pre>
+</details>
+
+<h2>4 · Live demo: wristbands (12 min)</h2>
+<pre>-- file: db/004_sessions.sql
+CREATE TABLE sessions (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX ON sessions (user_id);</pre>
+<pre>// sessions + guard (new file: auth.session.mjs)
+import crypto from "node:crypto";
+import { query } from "./db.mjs";
+export async function createSession(userId) {
+  const id = crypto.randomBytes(32).toString("hex");
+  const { rows } = await query(
+    "INSERT INTO sessions(id, user_id, expires_at) VALUES($1,$2,now() + interval '7 days') RETURNING *",
+    [id, userId]);
+  return rows[0];
+}
+export function setCookie(res, sid) {
+  res.cookie("sid", sid, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 7 * 864e5, path: "/" });
+}
+export async function requireUser(req, res, next) {
+  const sid = req.cookies?.sid;
+  const { rows } = sid
+    ? await query("SELECT u.id, u.email FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.id=$1 AND s.expires_at > now()", [sid])
+    : { rows: [] };
+  if (!rows[0]) return res.status(401).json({ error: "login required" });
+  req.user = rows[0];
+  next();
+}</pre>
+<pre>npm install cookie-parser
+<span class="c"># app.mjs: app.use(cookieParser()); app.use("/auth", authRouter);
+# login room now: const s = await createSession(user.id); setCookie(res, s.id);
+# return res.json({ user: { id, email } });
+# private rooms: app.use("/tasks", requireUser, tasksRouter);</span>
+node -e "const r = await fetch('http://localhost:3000/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'ada@example.com',password:'correct-horse-123'})}); console.log(r.status, r.headers.get('set-cookie')?.slice(0,60)+'...')"
+<span class="c"># expected: 200 set-cookie: sid=9f2c...; Max-Age=...; HttpOnly; SameSite=Lax — wristband issued</span></pre>
+<p>Why it works: <code class="inline">cookie-parser</code> fills <code class="inline">req.cookies</code> (unsigned here — randomness is the security, signatures optional); expiry checked in SQL (dead wristbands 401); user DELETE cascades sessions (chart 74's policy, working).</p>
+
+<h2>5 · How this fits TaskFlow</h2>
+<p>Identity flows now; 0030 restricts every room to owners (tasks join projects join users — the family earns its keep); logout + expiry close the loop. JWTs? Deliberately skipped — sessions revoke in one DELETE, tokens need blocklists to match that, and this course picks revocation.</p>
+
+<h2>6 · Common mistakes</h2>
+<div class="callout"><strong>“Stored user id in cookie.”</strong> <code class="inline">sid=u1</code> — forgeable identity. Fix: random pointer only; identity lives server-side, looked up per knock.</div>
+<div class="callout"><strong>“No Secure/HttpOnly.”</strong> JS-readable cookie over http — XSS + sniffing steal it. Fix: all three flags (Secure in prod), always — chart 90's line is load-bearing.</div>
+<div class="callout warn"><strong>“401 vs 403 swapped.”</strong> Forbidden-as-401 teaches clients to re-login forever; unknown-as-403 leaks existence. Fix: chart 92 order — who (401) before may-you (403).</div>
+
+<h2>7 · Practice exercise</h2>
+<ol class="steps">
+<li>Apply 004; wire sessions + guard; login → paste Set-Cookie (trim the secret middle); knock <code class="inline">GET /tasks</code> with and without cookie — paste 200 vs 401.</li>
+<li>Logout → re-knock with old cookie — paste the 401 proving the burn.</li>
+<li>Expire one session by hand (<code class="inline">UPDATE sessions SET expires_at=now()-interval'1h'</code>) — paste the 401 proving time works.</li>
+</ol>
+<p><em>Done means:</em> three pastes proving issue/guard/burn/expiry. Lesson 0030 (ownership + hardening) is next.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="random pointer server-side; identity looked up per knock, revocable per row.">
+<p>1. Cookie holds what?</p>
+<button data-key="a">User id and email</button>
+<button data-key="b">Random session pointer</button>
+<button data-key="c">Password hash copy here</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="HttpOnly blocks JS theft, SameSite blocks cross-site rides, Secure needs https.">
+<p>2. Cookie flags trio?</p>
+<button data-key="a">Red green blue markers</button>
+<button data-key="b">Cache pragma keep-alive</button>
+<button data-key="c">HttpOnly SameSite Secure</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="401 unknown stranger first, 403 known-but-forbidden second.">
+<p>3. 401 vs 403 order?</p>
+<button data-key="a">Who first, may-you next</button>
+<button data-key="b">May-you first, who next</button>
+<button data-key="c">Both sent together always</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="one row delete kills the wristband — tokens need blocklists to match.">
+<p>4. Logout revokes how?</p>
+<button data-key="a">Ask browser to forget</button>
+<button data-key="b">Delete session row once</button>
+<button data-key="c">Change user password now</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>8 · Summary</h2>
+<div class="callout why">Remembered knocks: <strong>random wristbands, server-side list, three flags, guard asks who-then-may-you (401/403), logout burns rows</strong>. Next: ownership — every room checks “yours?”, plus the hardening sweep.</div>
+
+<div class="callout">
+<strong>Primary sources:</strong> <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies">MDN cookies</a> · <a href="https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html">OWASP sessions</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0028-never-store-passwords.html">← 0028 Passwords</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Lesson 0030 (ownership + security hardening) comes next.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Exercise: Set-Cookie must show sid + HttpOnly + SameSite=Lax (+Secure only in prod). Authed <code class="inline">GET /tasks</code> → 200 envelope (scoped later); bare → 401 login required. Post-logout and post-expiry knocks both 401.</p>
+<p>Quiz: 1b, 2c, 3a, 4b. Watch for: “JWT is standard” — correct: standard ≠ mandatory; sessions win on revocation, which this course chose.</p>
+</details>
+
+<footer><strong>Lesson 0029</strong> · Module 6 · Sessions + cookies · Sources: <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies">cookies</a>, <a href="https://cheatsheetseries.owasp.org/">OWASP</a> · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>

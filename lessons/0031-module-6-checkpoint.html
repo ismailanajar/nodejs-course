@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#234df1">
+<title>0031 — Module 6 Checkpoint: Gate to Testing</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23234df1'/><text x='50' y='70' font-size='48' text-anchor='middle' fill='%23FACC15' font-family='Arial Black'>TF</text></svg>">
+<meta name="description" content="Module 6 checkpoint: trace denial blind, recite four denials, prove cross-user silence — the gate to testing.">
+<meta name="author" content="Ismail Anajar">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ismailanajar.github.io/nodejs-course/lessons/0031-module-6-checkpoint.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="0031 — Module 6 Checkpoint: Gate to Testing">
+<meta property="og:description" content="Module 6 checkpoint: trace denial blind, recite four denials, prove cross-user silence — the gate to testing.">
+<meta property="og:url" content="https://ismailanajar.github.io/nodejs-course/lessons/0031-module-6-checkpoint.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="0031 — Module 6 Checkpoint: Gate to Testing">
+<meta name="twitter:description" content="Module 6 checkpoint: trace denial blind, recite four denials, prove cross-user silence — the gate to testing.">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "LearningResource", "name": "0031 — Module 6 Checkpoint: Gate to Testing", "description": "Module 6 checkpoint: trace denial blind, recite four denials, prove cross-user silence — the gate to testing.", "author": {"@type": "Person", "name": "Ismail Anajar", "url": "https://ismail-anajar.vercel.app/", "sameAs": ["https://ismail-anajar.vercel.app/", "https://github.com/ismailanajar"]}, "teaches": "Node.js backend development", "inLanguage": "en"}</script>
+<link rel="stylesheet" href="../assets/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+<div class="topbar"><inner>
+<a href="../index.html#top" class="logo"><span class="logo-box">T<b>F</b></span><span class="logo-text">TaskFlow<em>.dev</em></span></a>
+<span class="links"><a href="0030-ownership-and-hardening.html">← 0030</a><a href="../reference/glossary.html">Glossary</a><span class="badge">Checkpoint</span></span>
+</inner></div>
+<main class="wrap" id="top">
+
+<header class="hero">
+<p class="hero-role">MODULE 6 · CHECKPOINT · GATE TO TESTING</p>
+<h1>Trust, <span class="u-stroke">but verify</span> blind</h1>
+<p class="subtitle">One sitting, one win: you redraw the whole auth story from memory — then tests prove it.</p>
+<div class="meta">
+<span>⏱ 40–50 min</span><span>Prerequisites: Lessons 0028–0030</span><span>Objectives: retrieve · triage · gate</span>
+</div>
+</header>
+
+<div class="callout why"><strong>Same deal:</strong> draw first, compare second. Module 7 automates everything below — this gate proves you know what the automation must assert.</div>
+
+<h2>0 · Your Module 6 journey on one chart</h2>
+<div class="mermaid">journey
+  title Module 6 — what you locked
+  section 0028 Secrets
+    Hash slow, 409 races: 4: You
+    Identical 401s always: 4: You
+  section 0029 Memory
+    Wristbands plus flags: 5: You
+    Who then may-you: 4: You
+  section 0030 Borders
+    SQL ownership, 404s: 5: You
+    Five locks in place: 3: You
+  section 0031 Today
+    Redraw it all blind: 5: You
+</div>
+<p class="diagram-cap"><strong>Chart 96 — Journey.</strong> Shaky task → re-open its lesson before exercises.</p>
+<details><summary><strong>Source (click)</strong></summary>
+<pre>journey
+  title Module 6 — what you locked
+  ...</pre>
+</details>
+
+<h2>1 · Cover-and-draw #1: stranger to owner</h2>
+<p><strong>Blank page.</strong> Trace a stranger's knock on another's task from cookie to 404, naming every check. Then diff:</p>
+<div class="mermaid">sequenceDiagram
+  participant S as stranger+cookie
+  participant G as guard (who?)
+  participant O as service (mine?)
+  participant D as SQL climb+filter
+  S->>G: Cookie: sid
+  G->>G: session → user B
+  G->>O: req.user=B, proceed
+  O->>D: ... AND owner=B
+  D->>O: zero rows
+  O->>S: 404 (existence hidden)
+</div>
+<p class="diagram-cap"><strong>Chart 97 — Full denial trace.</strong> Two gates, one silence: identity passes, ownership filters, nobody learns anything.</p>
+<details><summary><strong>Source + grading (click)</strong></summary>
+<p>Full marks = guard-then-service order + WHERE-climb named + 404 (not 403) justified in one line. Swapped gates or 403 loses half.</p>
+<pre>guard(who) → service(mine?) → SQL filter → 404</pre>
+</details>
+
+<h2>2 · Status map, pocket chart</h2>
+<div class="mermaid">flowchart LR
+  U401["401<br/>who? unknown"] --> F403["403<br/>known, role says no"]
+  F403 --> N404["404<br/>not-yours / missing"]
+  N404 --> C409["409<br/>taken, duplicate"]
+</div>
+<p class="diagram-cap"><strong>Chart 98 — Four denials.</strong> Each number answers a different question — clients branch, attackers starve.</p>
+
+<h2>3 · Login/register lanes</h2>
+<div class="mermaid">flowchart TD
+  REG["register: validate → UNIQUE → hash → 201/409"]
+  LOG["login: find → hash-compare (+dummy) → session → 200/401"]
+  OUT ["logout: DELETE row → 204, dead pointer"]
+  REG --> LOG --> OUT
+</div>
+<p class="diagram-cap"><strong>Chart 99 — Account lifecycle.</strong> Three lanes, all witnessed in demos.</p>
+
+<h2>4 · Auth triage</h2>
+<div class="mermaid">flowchart TD
+  E7["auth failed?!"] --> Q16{"which shape?"}
+  Q16 -- "401 everywhere" --> A7["cookie missing/dead<br/>login again"]
+  Q16 -- "403 on admin" --> B7["role gate<br/>not your tier"]
+  Q16 -- "404 on known id" --> C7["not yours (or gone)<br/>correct, move on"]
+  Q16 -- "no Secure flag" --> D7["prod misconfig<br/>cookie over http"]
+</div>
+<p class="diagram-cap"><strong>Chart 100 — Auth verdicts.</strong> Four shapes, four fixes — the 100th chart of the course.</p>
+
+<h2>5 · Where Module 6 hours go</h2>
+<div class="mermaid">pie title Module 6 stuck-hours (illustrative, not data)
+  "401 vs 403 vs 404" : 35
+  "cookie flags + CORS" : 30
+  "hash async + timing" : 20
+  "real crypto issues" : 15
+</div>
+<p class="diagram-cap"><strong>Chart 101 — Illustrative split.</strong> Status semantics dominate — exactly what this checkpoint drills.</p>
+
+<h2>6 · Retrieval exercises (blank page, then check)</h2>
+<ol class="steps">
+<li><strong>Denial redraw</strong> — chart 97 from memory with both gates named (§1 rubric).</li>
+<li><strong>Lanes rewrite</strong> — chart 99 from memory with statuses per lane end.</li>
+<li><strong>Live drill</strong> — two users, cross-knocks: own 200, other's 404, logged-out 401, double-register 409. Paste all four shapes.</li>
+</ol>
+<p><em>Done means:</em> denial sheet + lanes sheet + four pasted shapes. When all pass, Module 7 is unlocked — automation proves it nightly.</p>
+
+<div class="quiz">
+<h3>Knowledge check — instant feedback</h3>
+
+<div class="q" data-answer="b" data-why="hashes are one-way and slow; timing identical for miss and failure.">
+<p>1. Login compares how?</p>
+<button data-key="a">Decrypt stored password</button>
+<button data-key="b">Re-hash, compare slowly</button>
+<button data-key="c">Match plaintext directly</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="c" data-why="pointer server-side; flags lock transport; revocation is one delete.">
+<p>2. Session cookie is?</p>
+<button data-key="a">User id in clear</button>
+<button data-key="b">Password copy sealed</button>
+<button data-key="c">Random pointer, flagged</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="a" data-why="who (401) before may-you (403/404) — order is the semantics.">
+<p>3. Gates order is?</p>
+<button data-key="a">Identity, then ownership</button>
+<button data-key="b">Ownership, then identity</button>
+<button data-key="c">Both checked at once</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="existence hidden from strangers — enumeration dies.">
+<p>4. Stranger sees what?</p>
+<button data-key="a">403 with id confirmed</button>
+<button data-key="b">404, nothing learned</button>
+<button data-key="c">200 with masked fields</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+
+<div class="q" data-answer="b" data-why="UNIQUE races honestly; losers get 409, never duplicates.">
+<p>4b. Twin registers collide?</p>
+<button data-key="a">Both succeed, dupes stored</button>
+<button data-key="b">One wins, other 409</button>
+<button data-key="c">Server crashes loudly now</button>
+<div class="feedback">Pick an answer above.</div>
+</div>
+</div>
+
+<h2>7 · Summary + gate to Module 7</h2>
+<div class="callout why">Module 6 is yours when: <strong>you trace denial blind, recite the four denials, run the three lanes, and prove cross-user silence live</strong>. Next: Module 7 — tests that knock for real, docs, and types.</div>
+
+<div class="callout">
+<strong>Primary sources (re-read only misses):</strong> <a href="https://cheatsheetseries.owasp.org/">OWASP cheatsheets</a> · <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies">MDN cookies</a>.
+</div>
+
+<div class="next">
+<a class="btn ghost" href="0030-ownership-and-hardening.html">← 0030 Ownership</a>
+<a class="btn primary" href="../reference/glossary.html">Glossary v0 →</a>
+</div>
+<p style="color:var(--muted);font-size:14px">Module 7 starts at 0032 — tests that catch.</p>
+
+<details style="margin-top:28px"><summary><strong>Instructor answer key</strong></summary>
+<p>Ex3 shapes: own → 200 task; other's → 404 identical to missing; logged-out → 401 login required; re-register → 409 email taken. Sheets graded per chart 97/99 rubrics.</p>
+<p>Quiz: 1b, 2c, 3a, 4b, 4b→b. Gate: ≥4/5 + live drill = Module 7 unlocked.</p>
+</details>
+
+<footer><strong>Checkpoint 0031</strong> · Module 6 gate · 6 charts · Sources: OWASP/MDN · Back to <a href="../index.html">course home</a> · by <a href="https://ismail-anajar.vercel.app/" rel="author">Ismail Anajar</a></footer>
+</main>
+</body>
+</html>
